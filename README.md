@@ -1,16 +1,16 @@
 # pdfer
 
-A locally-hosted PDF toolkit with 26 tools. Everything runs on your machine — no files are uploaded to any server.
+A locally-hosted PDF workflow toolkit with 26 tools. Everything runs on your machine — no files are uploaded to any server. Create a workflow once, save it, never have to do repeat actions on a pdf again.
 
 ![pdfer home screen](screenshots/01_home.png)
 
-![Workflow builder](screenshots/02_workflow.png)
-
-![Results](screenshots/03_results.png)
-
-![Webpage to PDF](screenshots/04_webpage.png)
 
 ## Features
+
+### Workflows
+Create multi-step pdf workflows for repeat actions. An example workflow might be to convert an uploaded set of Powerpoint slides to pdf, convert those slides to pdfs, merge them, and add page numbers and a watermark.
+
+![Workflow builder](screenshots/02_workflow.png)
 
 ### Edit & Transform
 | Tool | Description |
