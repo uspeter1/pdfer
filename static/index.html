@@ -1,0 +1,4896 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>pdfer — local PDF toolkit</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@700;800&family=IBM+Plex+Mono:ital,wght@0,400;0,500;0,600;1,400&family=DM+Sans:opsz,wght@9..40,300;9..40,400;9..40,500&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  --bg:          #09090f;
+  --bg2:         #0f0f1a;
+  --surface:     #13131f;
+  --surface2:    #1a1a2e;
+  --border:      rgba(255,255,255,.09);
+  --border2:     rgba(255,255,255,.16);
+  --accent:      #a2ff5a;
+  --accent-dim:  rgba(162,255,90,.12);
+  --accent-glow: rgba(162,255,90,.25);
+  --text:        #e0e0f0;
+  --text-2:      #8888aa;
+  --text-3:      #5555777;
+  --danger:      #ff4d6a;
+  --warn:        #ffbb33;
+  --mono:        'IBM Plex Mono', monospace;
+  --sans:        'DM Sans', sans-serif;
+  --display:     'Syne', sans-serif;
+  --radius:      10px;
+  --radius-lg:   16px;
+  --transition:  .18s cubic-bezier(.4,0,.2,1);
+}
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+html { scroll-behavior: smooth; }
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.6;
+  min-height: 100vh;
+  overflow-x: hidden;
+}
+
+/* ── Scrollbar ────────────────────────────────────────────────────────────── */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: var(--surface2); border-radius: 99px; }
+
+/* ── Typography ────────────────────────────────────────────────────────────── */
+h1,h2,h3 { font-family: var(--display); }
+code, .mono { font-family: var(--mono); }
+
+/* ── Utilities ─────────────────────────────────────────────────────────────── */
+.hidden { display: none !important; }
+.sr-only { position:absolute; width:1px; height:1px; clip:rect(0,0,0,0); }
+
+/* ── Buttons ───────────────────────────────────────────────────────────────── */
+button {
+  cursor: pointer;
+  border: none;
+  font-family: var(--sans);
+  font-size: 13px;
+  transition: var(--transition);
+}
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  border-radius: var(--radius);
+  font-weight: 500;
+  white-space: nowrap;
+}
+
+.btn-primary {
+  background: var(--accent);
+  color: #0a0f04;
+  font-weight: 700;
+  font-family: var(--display);
+  letter-spacing: .02em;
+}
+.btn-primary:hover { filter: brightness(1.1); transform: translateY(-1px); box-shadow: 0 6px 20px var(--accent-glow); }
+.btn-primary:active { transform: translateY(0); }
+.btn-primary:disabled { opacity: .35; cursor: not-allowed; transform: none; box-shadow: none; filter: none; }
+
+.btn-ghost {
+  background: transparent;
+  color: var(--text-2);
+  border: 1px solid var(--border2);
+}
+.btn-ghost:hover { background: var(--surface2); color: var(--text); border-color: var(--border2); }
+
+.btn-danger { background: rgba(255,77,106,.12); color: var(--danger); border: 1px solid rgba(255,77,106,.25); }
+.btn-danger:hover { background: rgba(255,77,106,.22); }
+
+/* ── Header ────────────────────────────────────────────────────────────────── */
+header {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 0 24px;
+  height: 56px;
+  background: rgba(9,9,15,.85);
+  backdrop-filter: blur(12px);
+  border-bottom: 1px solid var(--border);
+}
+
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  text-decoration: none;
+  flex-shrink: 0;
+}
+.logo-mark {
+  width: 28px;
+  height: 28px;
+  background: var(--accent);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.logo-mark svg { width: 16px; height: 16px; color: #0a0f04; }
+.logo-name {
+  font-family: var(--display);
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: -.02em;
+}
+
+.badges {
+  display: flex;
+  gap: 6px;
+  margin-left: 4px;
+}
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 9px;
+  border-radius: 99px;
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .06em;
+  border: 1px solid var(--border2);
+  color: var(--text-2);
+  white-space: nowrap;
+}
+.badge-local {
+  color: var(--accent);
+  border-color: rgba(162,255,90,.3);
+  background: var(--accent-dim);
+}
+.badge-local::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  animation: pulse-dot 2s infinite;
+  flex-shrink: 0;
+}
+
+@keyframes pulse-dot {
+  0%,100% { opacity: 1; box-shadow: 0 0 0 0 var(--accent-glow); }
+  50% { opacity: .7; box-shadow: 0 0 0 4px transparent; }
+}
+
+header nav { margin-left: auto; display: flex; gap: 8px; align-items: center; }
+header nav a {
+  color: var(--text-2);
+  text-decoration: none;
+  font-size: 13px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  transition: var(--transition);
+}
+header nav a:hover { color: var(--text); background: var(--surface); }
+
+/* ── Main layout ───────────────────────────────────────────────────────────── */
+main {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 40px 24px 80px;
+}
+
+/* ── Upload zone ───────────────────────────────────────────────────────────── */
+#sec-upload { margin-bottom: 40px; }
+
+.hero-tagline {
+  text-align: center;
+  margin-bottom: 28px;
+}
+.hero-tagline h1 {
+  font-size: clamp(28px, 5vw, 44px);
+  font-weight: 800;
+  letter-spacing: -.03em;
+  color: var(--text);
+  line-height: 1.1;
+  margin-bottom: 10px;
+}
+.hero-tagline h1 span { color: var(--accent); }
+.hero-tagline p {
+  color: var(--text-2);
+  font-size: 15px;
+  font-weight: 300;
+}
+
+#drop-zone {
+  position: relative;
+  border: 2px dashed var(--border2);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  cursor: pointer;
+  transition: border-color var(--transition), background var(--transition);
+  overflow: hidden;
+}
+#drop-zone::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: radial-gradient(ellipse at 50% 100%, rgba(162,255,90,.04) 0%, transparent 70%);
+  pointer-events: none;
+}
+#drop-zone.drag-over {
+  border-color: var(--accent);
+  background: var(--bg2);
+  box-shadow: 0 0 0 4px var(--accent-dim), inset 0 0 40px rgba(162,255,90,.04);
+}
+#drop-zone:hover { border-color: var(--border2); background: var(--bg2); }
+
+.dz-inner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 56px 32px;
+  gap: 12px;
+}
+.dz-icon {
+  width: 52px;
+  height: 52px;
+  color: var(--text-2);
+  margin-bottom: 4px;
+  transition: color var(--transition), transform var(--transition);
+}
+#drop-zone.drag-over .dz-icon { color: var(--accent); transform: scale(1.08) translateY(-2px); }
+.dz-title {
+  font-family: var(--display);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -.01em;
+}
+.dz-sub {
+  color: var(--text-2);
+  font-size: 13px;
+  text-align: center;
+  line-height: 1.5;
+}
+.dz-formats {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  justify-content: center;
+  margin-top: 4px;
+}
+.dz-fmt {
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 2px 7px;
+  border-radius: 4px;
+  background: var(--surface2);
+  color: var(--text-2);
+  border: 1px solid var(--border);
+}
+.upload-or {
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-2);
+  margin: 12px 0;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  font-family: var(--mono);
+}
+#web-zone {
+  border: 2px dashed var(--border2);
+  border-radius: var(--radius-lg);
+  background: var(--surface);
+  transition: border-color var(--transition), background var(--transition);
+}
+#web-zone:focus-within {
+  border-color: var(--accent);
+  background: var(--bg2);
+}
+.wz-inner {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 18px 24px;
+}
+.wz-icon {
+  width: 22px;
+  height: 22px;
+  flex-shrink: 0;
+  color: var(--text-2);
+}
+.wz-label {
+  font-size: 13px;
+  color: var(--text-2);
+  white-space: nowrap;
+  flex-shrink: 0;
+}
+.wz-form {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 1;
+  min-width: 0;
+}
+.wz-input {
+  flex: 1;
+  min-width: 0;
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 13px;
+  padding: 7px 12px;
+  outline: none;
+  transition: border-color var(--transition), box-shadow var(--transition);
+}
+.wz-input::placeholder { color: var(--text-2); opacity: .6; }
+.wz-input:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px var(--accent-dim);
+}
+.wz-btn {
+  background: var(--surface2);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 12px;
+  padding: 7px 14px;
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  transition: background var(--transition), border-color var(--transition), color var(--transition);
+}
+.wz-btn:hover {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #000;
+}
+@media (max-width: 600px) {
+  .wz-inner { flex-wrap: wrap; gap: 10px; padding: 16px; }
+  .wz-label { width: 100%; }
+}
+
+/* ── Section header ────────────────────────────────────────────────────────── */
+.section-hdr {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.section-hdr h2 {
+  font-size: 13px;
+  font-weight: 700;
+  font-family: var(--mono);
+  color: var(--text-2);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+.section-hdr-line {
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+.section-hdr-actions { display: flex; gap: 6px; }
+
+/* ── Files list ────────────────────────────────────────────────────────────── */
+#sec-workflow { margin-bottom: 32px; }
+
+#files-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 28px;
+}
+
+.file-chip {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 10px 6px 8px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  animation: chip-in .2s ease;
+  max-width: 260px;
+}
+@keyframes chip-in {
+  from { opacity: 0; transform: scale(.95) translateY(4px); }
+  to   { opacity: 1; transform: none; }
+}
+.file-chip-icon {
+  width: 26px;
+  height: 26px;
+  border-radius: 5px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 11px;
+  font-family: var(--mono);
+  font-weight: 600;
+}
+.file-chip-info { min-width: 0; }
+.file-chip-name {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 160px;
+}
+.file-chip-size {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-2);
+}
+.file-chip-del {
+  width: 20px;
+  height: 20px;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 13px;
+  line-height: 1;
+  padding: 0;
+  margin-left: 2px;
+  transition: background var(--transition), color var(--transition);
+}
+.file-chip-del:hover { background: rgba(255,77,106,.15); color: var(--danger); }
+
+/* ── Pipeline ──────────────────────────────────────────────────────────────── */
+.pipeline-wrap {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  overflow-x: auto;
+  padding: 4px 0 12px;
+  scrollbar-width: thin;
+}
+
+.pipe-arrow {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  padding: 0 2px;
+}
+.pipe-arrow svg { color: var(--text-3); width: 24px; height: 24px; flex-shrink: 0; }
+.pipe-arrow.flowing svg { color: var(--accent); animation: arrow-pulse 1s infinite; }
+@keyframes arrow-pulse { 0%,100% { opacity: 1; } 50% { opacity: .4; } }
+
+.pipe-node {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 80px;
+  padding: 14px 12px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  flex-shrink: 0;
+  text-align: center;
+}
+.pipe-node-icon { font-size: 20px; line-height: 1; }
+.pipe-node-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-2);
+  letter-spacing: .04em;
+}
+.pipe-node-count {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--accent);
+}
+.pipe-node-end { border-color: rgba(162,255,90,.25); background: rgba(162,255,90,.04); }
+
+/* ── Step cards ────────────────────────────────────────────────────────────── */
+#pipeline-steps {
+  display: contents;
+}
+
+.step-entry {
+  display: contents;
+}
+
+.step-card {
+  position: relative;
+  min-width: 150px;
+  max-width: 190px;
+  border-radius: var(--radius);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  flex-shrink: 0;
+  cursor: grab;
+  transition: border-color var(--transition), box-shadow var(--transition), opacity var(--transition);
+  animation: step-in .22s cubic-bezier(.34,1.56,.64,1);
+  overflow: hidden;
+}
+.step-card:active { cursor: grabbing; }
+.step-card.dragging { opacity: .4; }
+.step-card.drag-target { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-dim); }
+.step-card.running { border-color: rgba(162,255,90,.4); animation: step-running 1.2s ease-in-out infinite alternate; }
+.step-card.done { border-color: rgba(162,255,90,.5); }
+@keyframes step-in {
+  from { opacity: 0; transform: scale(.9) translateY(6px); }
+  to   { opacity: 1; transform: none; }
+}
+@keyframes step-running {
+  from { box-shadow: 0 0 0 2px var(--accent-dim); }
+  to   { box-shadow: 0 0 0 4px var(--accent-glow); }
+}
+
+.step-accent-bar {
+  height: 3px;
+  width: 100%;
+  background: var(--accent);
+  opacity: .6;
+}
+.step-card.done .step-accent-bar { opacity: 1; }
+
+.step-body {
+  padding: 10px 12px;
+}
+.step-top {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+.step-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  background: var(--surface2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  color: var(--accent);
+}
+.step-icon svg { width: 14px; height: 14px; }
+.step-meta { flex: 1; min-width: 0; }
+.step-num {
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--text-2);
+  letter-spacing: .06em;
+}
+.step-name {
+  font-family: var(--display);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -.01em;
+  line-height: 1.2;
+}
+.step-actions {
+  display: flex;
+  gap: 2px;
+  flex-shrink: 0;
+}
+.step-btn {
+  width: 22px;
+  height: 22px;
+  border-radius: 4px;
+  background: transparent;
+  color: var(--text-2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: var(--transition);
+  padding: 0;
+}
+.step-btn:hover { background: var(--surface2); color: var(--text); }
+.step-btn.del:hover { color: var(--danger); background: rgba(255,77,106,.1); }
+.step-btn svg { width: 12px; height: 12px; }
+
+.step-params-toggle {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  color: var(--text-2);
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 6px 12px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: var(--transition);
+}
+.step-params-toggle:hover { color: var(--accent); background: var(--accent-dim); }
+.step-params-toggle svg { width: 10px; height: 10px; flex-shrink: 0; transition: transform .15s; }
+.step-params-toggle.open svg { transform: rotate(180deg); }
+
+/* ── Inline params panel ───────────────────────────────────────────────────── */
+.params-panel {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-top: none;
+  border-radius: 0 0 var(--radius) var(--radius);
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  animation: params-open .15s ease;
+  min-width: 200px;
+}
+@keyframes params-open {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: none; }
+}
+
+/* ── Add step button ───────────────────────────────────────────────────────── */
+#btn-add-step {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 100px;
+  padding: 14px 16px;
+  border: 2px dashed var(--border2);
+  border-radius: var(--radius);
+  background: transparent;
+  color: var(--text-2);
+  flex-direction: column;
+  gap: 4px;
+  flex-shrink: 0;
+  font-family: var(--mono);
+  font-size: 11px;
+  transition: var(--transition);
+}
+#btn-add-step:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+  background: var(--accent-dim);
+}
+#btn-add-step svg { width: 18px; height: 18px; }
+
+/* ── Form fields ───────────────────────────────────────────────────────────── */
+.field { display: flex; flex-direction: column; gap: 5px; }
+.field label {
+  font-size: 11px;
+  font-family: var(--mono);
+  color: var(--text-2);
+  letter-spacing: .04em;
+}
+.field input[type=text],
+.field input[type=number],
+.field select {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 12px;
+  padding: 6px 10px;
+  width: 100%;
+  transition: border-color var(--transition);
+  outline: none;
+}
+.field input:focus,
+.field select:focus { border-color: var(--accent); }
+.field select { appearance: none; cursor: pointer; }
+.field input[type=color] {
+  height: 32px;
+  padding: 2px 4px;
+  border-radius: 6px;
+  border: 1px solid var(--border2);
+  background: var(--surface);
+  width: 100%;
+  cursor: pointer;
+}
+.field input[type=range] {
+  width: 100%;
+  accent-color: var(--accent);
+}
+
+/* ── Run section ───────────────────────────────────────────────────────────── */
+#run-section {
+  margin-top: 28px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+#btn-run {
+  font-size: 15px;
+  padding: 12px 32px;
+  border-radius: var(--radius);
+}
+.run-hint {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-2);
+}
+
+/* ── Progress overlay ──────────────────────────────────────────────────────── */
+#progress-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(9,9,15,.8);
+  backdrop-filter: blur(6px);
+  z-index: 200;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.progress-box {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius-lg);
+  padding: 32px 40px;
+  min-width: 360px;
+  text-align: center;
+}
+.progress-title {
+  font-family: var(--display);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 24px;
+}
+.progress-steps { display: flex; flex-direction: column; gap: 10px; text-align: left; }
+.progress-step {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-2);
+}
+.progress-step.active { color: var(--text); }
+.progress-step.done  { color: var(--accent); }
+.p-step-indicator {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 1.5px solid var(--border2);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
+}
+.progress-step.active .p-step-indicator {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+  animation: spin .8s linear infinite;
+}
+.progress-step.done .p-step-indicator {
+  border-color: var(--accent);
+  background: var(--accent);
+  color: #0a0f04;
+}
+.progress-step.paused { color: var(--warn); }
+.progress-step.paused .p-step-indicator {
+  border-color: var(--warn);
+  background: rgba(255,187,51,.15);
+  font-size: 11px;
+}
+.progress-paused-box {
+  margin-top: 20px;
+  padding: 16px;
+  background: rgba(255,187,51,.07);
+  border: 1px solid rgba(255,187,51,.3);
+  border-radius: var(--radius);
+  text-align: center;
+}
+.progress-paused-box p {
+  font-size: 13px;
+  color: var(--text-2);
+  margin-bottom: 12px;
+  font-family: var(--mono);
+}
+/* ── Token buttons (rename template) ──────────────────────────────────────── */
+.token-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 6px;
+}
+.token-btn {
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 2px 7px;
+  background: rgba(162,255,90,.08);
+  border: 1px solid rgba(162,255,90,.25);
+  border-radius: 4px;
+  color: var(--accent);
+  cursor: pointer;
+  transition: background .15s;
+}
+.token-btn:hover { background: rgba(162,255,90,.18); }
+
+/* ── Checkbox param ────────────────────────────────────────────────────────── */
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 13px;
+  color: var(--text-2);
+  cursor: pointer;
+  user-select: none;
+}
+.checkbox-label input[type=checkbox] {
+  width: 14px;
+  height: 14px;
+  accent-color: var(--accent);
+  cursor: pointer;
+}
+
+/* ── Rename pause inputs ───────────────────────────────────────────────────── */
+.rename-input-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.rename-orig-name {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 140px;
+  flex-shrink: 0;
+}
+.rename-name-input {
+  flex: 1;
+  min-width: 0;
+}
+
+@keyframes spin {
+  from { transform: rotate(0deg); }
+  to   { transform: rotate(360deg); }
+}
+
+/* ── Results ───────────────────────────────────────────────────────────────── */
+#sec-results { animation: fade-up .3s ease; }
+@keyframes fade-up { from { opacity:0; transform:translateY(16px); } to { opacity:1; transform:none; } }
+
+.results-hdr {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 20px;
+}
+.results-hdr h2 {
+  font-family: var(--display);
+  font-size: 22px;
+  font-weight: 800;
+}
+.results-hdr .check {
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: #0a0f04;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.results-files { display: flex; flex-direction: column; gap: 8px; margin-bottom: 20px; }
+.result-file {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  animation: chip-in .2s ease;
+}
+.result-file-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 6px;
+  background: var(--surface2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.result-file-icon svg { width: 18px; height: 18px; }
+.result-file-info { flex: 1; min-width: 0; }
+.result-file-name {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.result-file-size {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-2);
+}
+
+.results-actions { display: flex; gap: 10px; flex-wrap: wrap; }
+
+/* ── Tool picker bottom sheet ──────────────────────────────────────────────── */
+#tool-picker {
+  position: fixed;
+  inset: 0;
+  z-index: 300;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+.picker-backdrop {
+  position: absolute;
+  inset: 0;
+  background: rgba(9,9,15,.7);
+  backdrop-filter: blur(4px);
+}
+.picker-sheet {
+  position: relative;
+  background: var(--surface);
+  border-top: 1px solid var(--border2);
+  border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+  padding: 20px 24px 32px;
+  max-height: 75vh;
+  overflow-y: auto;
+  animation: sheet-up .22s cubic-bezier(.34,1.56,.64,1);
+}
+@keyframes sheet-up {
+  from { transform: translateY(40px); opacity: 0; }
+  to   { transform: none; opacity: 1; }
+}
+.picker-hdr {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 20px;
+}
+.picker-hdr h3 {
+  font-family: var(--display);
+  font-size: 17px;
+  font-weight: 700;
+}
+.picker-close {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--surface2);
+  color: var(--text-2);
+  font-size: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.picker-close:hover { background: var(--surface2); color: var(--text); }
+
+.tool-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+}
+.tool-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg2);
+  text-align: left;
+  transition: var(--transition);
+  animation: none;
+}
+.tool-card:hover {
+  border-color: var(--accent);
+  background: var(--accent-dim);
+  transform: translateY(-1px);
+}
+.tool-card-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 8px;
+  background: var(--surface2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+  flex-shrink: 0;
+}
+.tool-card-icon svg { width: 18px; height: 18px; }
+.tool-card-info { min-width: 0; }
+.tool-card-name {
+  font-family: var(--display);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  letter-spacing: -.01em;
+  margin-bottom: 2px;
+}
+.tool-card-desc {
+  font-size: 12px;
+  color: var(--text-2);
+  line-height: 1.4;
+}
+
+/* ── Error toast ───────────────────────────────────────────────────────────── */
+#error-toast {
+  position: fixed;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 500;
+  background: var(--surface);
+  border: 1px solid rgba(255,77,106,.4);
+  border-radius: var(--radius);
+  padding: 12px 20px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  max-width: 500px;
+  animation: toast-in .22s ease;
+  box-shadow: 0 8px 32px rgba(0,0,0,.4);
+}
+@keyframes toast-in { from { opacity:0; transform:translateX(-50%) translateY(12px); } to { opacity:1; transform:translateX(-50%); } }
+.toast-icon { color: var(--danger); flex-shrink: 0; }
+.toast-msg { font-size: 13px; color: var(--text); flex: 1; }
+.toast-close { color: var(--text-2); font-size: 16px; background: transparent; }
+.toast-close:hover { color: var(--text); }
+
+/* ── Auto-convert banner ───────────────────────────────────────────────────── */
+.auto-convert-banner {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 14px;
+  margin-bottom: 16px;
+  background: rgba(255,187,51,.07);
+  border: 1px solid rgba(255,187,51,.25);
+  border-radius: var(--radius);
+  font-size: 12px;
+  color: var(--warn);
+  font-family: var(--mono);
+  animation: chip-in .2s ease;
+}
+.auto-convert-banner svg { flex-shrink: 0; width: 14px; height: 14px; }
+.auto-convert-banner span { flex: 1; }
+
+/* ── Organize step special button ─────────────────────────────────────────── */
+.step-arrange-btn {
+  width: 100%;
+  text-align: left;
+  background: transparent;
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 10px;
+  padding: 6px 12px;
+  border-top: 1px solid var(--border);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  transition: var(--transition);
+}
+.step-arrange-btn:hover { background: var(--accent-dim); }
+.step-arrange-btn svg { width: 11px; height: 11px; flex-shrink: 0; }
+.step-arrange-configured { color: var(--accent); }
+
+/* ── Organize overlay ─────────────────────────────────────────────────────── */
+#organize-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  display: flex;
+  flex-direction: column;
+  background: rgba(9,9,15,.92);
+  backdrop-filter: blur(10px);
+}
+
+.org-header {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border2);
+  flex-shrink: 0;
+}
+.org-title { font-family: var(--display); font-size: 18px; font-weight: 800; }
+.org-sub   { font-size: 12px; color: var(--text-2); font-family: var(--mono); }
+.org-actions { margin-left: auto; display: flex; gap: 8px; }
+
+.org-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 24px;
+}
+
+.org-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  height: 200px;
+  gap: 12px;
+  color: var(--text-2);
+  font-family: var(--mono);
+  font-size: 13px;
+}
+.org-loading-spinner {
+  width: 28px;
+  height: 28px;
+  border: 2px solid var(--border2);
+  border-top-color: var(--accent);
+  border-radius: 50%;
+  animation: spin .7s linear infinite;
+}
+
+.page-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+  gap: 14px;
+}
+
+.page-tile {
+  position: relative;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  cursor: grab;
+  transition: border-color var(--transition), transform var(--transition), box-shadow var(--transition);
+  user-select: none;
+  animation: chip-in .18s ease;
+}
+.page-tile:hover { border-color: var(--border2); transform: translateY(-2px); box-shadow: 0 6px 20px rgba(0,0,0,.4); }
+.page-tile:active { cursor: grabbing; }
+.page-tile.dragging  { opacity: .35; transform: scale(.97); }
+.page-tile.selected  { border-color: var(--accent); background: rgba(162,255,90,.08); }
+.page-tile.drag-over {
+  border-color: var(--accent);
+  box-shadow: -4px 0 0 0 var(--accent);
+  transform: translateX(3px);
+}
+.split-tile.selected { border-color: var(--accent) !important; background: rgba(162,255,90,.1); }
+.split-tile.drag-before { box-shadow: -3px 0 0 0 var(--accent); }
+
+/* Rubber-band selection box */
+.selection-box {
+  position: fixed;
+  border: 1px solid var(--accent);
+  background: rgba(162,255,90,.07);
+  pointer-events: none;
+  z-index: 9999;
+  border-radius: 3px;
+}
+
+.page-tile-badge {
+  position: absolute;
+  top: 6px;
+  left: 6px;
+  background: rgba(9,9,15,.8);
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 600;
+  padding: 2px 6px;
+  border-radius: 4px;
+  line-height: 1.4;
+}
+
+.page-tile-del {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 20px;
+  height: 20px;
+  background: rgba(255,77,106,.8);
+  color: #fff;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  cursor: pointer;
+  border: none;
+  opacity: 0;
+  transition: opacity .15s;
+  line-height: 1;
+}
+.page-tile:hover .page-tile-del { opacity: 1; }
+.page-tile-del:hover { background: var(--danger); }
+
+.page-tile-img {
+  width: 100%;
+  aspect-ratio: 1 / 1.414;  /* A4 ratio */
+  object-fit: cover;
+  object-position: top;
+  display: block;
+  background: var(--surface2);
+}
+.page-tile-placeholder {
+  width: 100%;
+  aspect-ratio: 1 / 1.414;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--surface2);
+  color: var(--text-2);
+  font-size: 28px;
+}
+/* ── Split overlay ─────────────────────────────────────────────────────────── */
+#split-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+  display: flex;
+  flex-direction: column;
+  background: rgba(9,9,15,.92);
+  backdrop-filter: blur(10px);
+}
+.split-groups-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+.split-group {
+  border: 2px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  transition: border-color .15s;
+}
+.split-group.drag-target { border-color: var(--accent); background: rgba(162,255,90,.04); }
+.split-group-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 7px 12px;
+  background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.split-group-dot {
+  width: 9px; height: 9px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+.split-group-label {
+  flex: 1;
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-1);
+}
+.split-group-count {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-3);
+}
+.split-group-del {
+  width: 20px; height: 20px;
+  border-radius: 4px;
+  border: none;
+  background: transparent;
+  color: var(--text-3);
+  cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px;
+  transition: var(--transition);
+  line-height: 1;
+  padding: 0;
+}
+.split-group-del:hover { background: rgba(255,77,106,.15); color: var(--danger); }
+.split-group-pages {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  padding: 12px;
+  min-height: 90px;
+}
+.split-group-empty {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-3);
+  font-family: var(--mono);
+  font-size: 12px;
+  pointer-events: none;
+}
+/* smaller tiles inside split groups */
+.split-tile {
+  position: relative;
+  width: 90px;
+  flex-shrink: 0;
+  background: var(--surface);
+  border: 2px solid var(--border);
+  border-radius: 7px;
+  overflow: hidden;
+  cursor: grab;
+  transition: border-color var(--transition), transform var(--transition), box-shadow var(--transition);
+  user-select: none;
+}
+.split-tile:hover  { border-color: var(--border2); transform: translateY(-2px); box-shadow: 0 4px 14px rgba(0,0,0,.4); }
+.split-tile:active { cursor: grabbing; }
+.split-tile.dragging  { opacity: .3; transform: scale(.95); }
+.split-tile.drag-before { box-shadow: -3px 0 0 0 var(--accent); }
+.split-tile-img {
+  width: 100%;
+  aspect-ratio: 1 / 1.414;
+  object-fit: cover;
+  object-position: top;
+  display: block;
+  background: var(--surface2);
+}
+.split-tile-placeholder {
+  width: 100%;
+  aspect-ratio: 1 / 1.414;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--surface2);
+  color: var(--text-2);
+  font-size: 20px;
+}
+.split-tile-label {
+  padding: 4px 6px;
+  font-family: var(--mono);
+  font-size: 9px;
+  color: var(--text-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.split-tile-badge {
+  position: absolute;
+  top: 4px; left: 4px;
+  background: rgba(9,9,15,.8);
+  color: var(--accent);
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 600;
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+.page-tile-label {
+  padding: 6px 8px;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  border-top: 1px solid var(--border);
+}
+
+/* ── Sign overlay ──────────────────────────────────────────────────────────── */
+#sign-overlay {
+  position: fixed; inset: 0; z-index: 500;
+  display: flex; flex-direction: column;
+  background: rgba(9,9,15,.97); backdrop-filter: blur(12px);
+}
+.sign-hdr {
+  display: flex; align-items: center; gap: 12px;
+  padding: 9px 14px; border-bottom: 1px solid var(--border); flex-shrink: 0;
+}
+.sign-hdr-left { flex: 1; display: flex; align-items: center; gap: 14px; min-width: 0; }
+.sign-hdr-title { font-family: var(--display); font-size: 14px; font-weight: 600; }
+.sign-hdr-page  { font-family: var(--mono); font-size: 11px; color: var(--text-3); }
+.sign-hdr-right { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+
+/* main split: page area + sidebar */
+.sign-main { flex: 1; display: flex; overflow: hidden; position: relative; }
+
+/* left: page preview */
+.sign-page-area {
+  flex: 1; overflow: auto; display: flex;
+  align-items: flex-start; justify-content: center;
+  padding: 24px 20px;
+}
+.sign-page-wrap { position: relative; display: inline-block; line-height: 0; }
+#sign-page-img {
+  display: block;
+  max-height: calc(100vh - 150px);
+  max-width: calc(100vw - 195px);
+  width: auto; height: auto;
+  box-shadow: 0 6px 40px rgba(0,0,0,.7); border-radius: 3px;
+  user-select: none; pointer-events: none;
+}
+.sign-page-loading {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  background: rgba(9,9,15,.6); border-radius: 3px;
+}
+
+/* Signature overlays on page */
+.sig-ov {
+  position: absolute; border: 2px dashed rgba(162,255,90,.65); border-radius: 3px;
+  cursor: move; user-select: none; box-sizing: border-box;
+  transition: border-color .1s;
+}
+.sig-ov:hover { border-color: var(--accent); }
+.sig-ov.is-dragging { opacity: .8; border-style: solid; }
+.sig-ov img { display: block; width: 100%; height: 100%; object-fit: contain; pointer-events: none; }
+.sig-ov-text {
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; height: 100%;
+  font-style: italic; font-family: Georgia,serif;
+  white-space: nowrap; overflow: hidden; padding: 2px 6px;
+  box-sizing: border-box; pointer-events: none;
+  transition: font-size .05s;
+}
+/* Date format dropdown */
+.sign-date-wrap { position: relative; }
+.sign-date-dd {
+  position: absolute; top: calc(100% + 5px); left: 0;
+  background: var(--bg); border: 1px solid var(--border2);
+  border-radius: var(--radius); padding: 4px;
+  min-width: 170px; z-index: 200;
+  box-shadow: 0 6px 20px rgba(0,0,0,.5);
+  display: flex; flex-direction: column; gap: 1px;
+}
+.sign-date-dd button {
+  background: transparent; border: none; border-radius: 4px;
+  color: var(--text-1); font-size: 12px; font-family: var(--mono);
+  padding: 6px 10px; text-align: left; cursor: pointer; width: 100%;
+  transition: background .1s;
+}
+.sign-date-dd button:hover { background: var(--surface2); color: var(--accent); }
+.sign-date-picker-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 6px 10px 8px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 3px;
+}
+.sign-date-picker-row label {
+  font-family: var(--mono); font-size: 10px; text-transform: uppercase;
+  color: var(--text-3); flex-shrink: 0; letter-spacing: .05em;
+}
+.sign-date-picker-row input[type=date] {
+  flex: 1; background: var(--surface2); border: 1px solid var(--border);
+  border-radius: 4px; color: var(--text-1); font-size: 12px;
+  font-family: var(--mono); padding: 4px 7px; outline: none;
+  color-scheme: dark;
+}
+.sign-date-picker-row input[type=date]:focus { border-color: var(--accent); }
+.sig-ov-rm {
+  position: absolute; top: -9px; right: -9px;
+  width: 18px; height: 18px; border-radius: 50%;
+  background: var(--danger); color: #fff; border: none;
+  cursor: pointer; font-size: 12px; font-weight: 700;
+  display: flex; align-items: center; justify-content: center;
+  z-index: 10; line-height: 1; padding: 0;
+  transition: transform .12s;
+}
+.sig-ov-rm:hover { transform: scale(1.2); }
+.sig-ov-rz {
+  position: absolute; bottom: -5px; right: -5px;
+  width: 12px; height: 12px; background: var(--accent);
+  border-radius: 2px; cursor: se-resize; z-index: 10;
+}
+
+/* Add signature button (floats over page area) */
+.sign-add-btn {
+  position: sticky; bottom: 16px; margin-top: 12px;
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 8px 16px; border-radius: var(--radius);
+  background: var(--surface2); border: 1px solid var(--border2);
+  color: var(--accent); font-size: 13px; font-weight: 600;
+  cursor: pointer; transition: background .14s, border-color .14s;
+  z-index: 5;
+}
+.sign-add-btn:hover { background: rgba(162,255,90,.1); border-color: var(--accent); }
+
+/* right sidebar: page thumbnails */
+.sign-sidebar {
+  width: 168px; border-left: 1px solid var(--border);
+  overflow-y: auto; flex-shrink: 0;
+  padding: 10px 10px 10px 8px; display: flex; flex-direction: column;
+  gap: 7px; scrollbar-width: thin;
+}
+.sign-sth {
+  position: relative; flex-shrink: 0; border-radius: 6px;
+  border: 2px solid var(--border); overflow: hidden;
+  cursor: pointer; transition: border-color .14s;
+}
+.sign-sth:hover  { border-color: var(--border2); }
+.sign-sth.active { border-color: var(--accent); }
+.sign-sth img { display: block; width: 100%; aspect-ratio: 1/1.414; object-fit: cover; object-position: top; }
+.sign-sth-foot {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 3px 7px; border-top: 1px solid var(--border); background: var(--surface);
+}
+.sign-sth-num { font-family: var(--mono); font-size: 9px; color: var(--text-3); }
+.sign-sth-cnt { font-family: var(--mono); font-size: 9px; color: var(--accent); font-weight: 700; }
+
+/* draw panel (slides up from bottom) */
+#sign-draw-panel {
+  position: absolute; bottom: 0; left: 0; right: 156px;
+  background: #0d0d14; border-top: 1px solid var(--border2);
+  transform: translateY(100%); transition: transform .22s cubic-bezier(.4,0,.2,1);
+  z-index: 20; box-shadow: 0 -6px 30px rgba(0,0,0,.6);
+}
+#sign-draw-panel.open { transform: translateY(0); }
+.sdp-hdr {
+  display: flex; align-items: center; gap: 8px;
+  padding: 8px 14px; border-bottom: 1px solid var(--border);
+}
+.sdp-tabs { display: flex; gap: 3px; }
+.sdp-tab {
+  padding: 3px 14px; border-radius: 20px;
+  border: 1px solid var(--border); background: transparent;
+  color: var(--text-2); font-size: 12px; cursor: pointer;
+  transition: background .12s, color .12s;
+}
+.sdp-tab.active { background: var(--accent); color: #000; border-color: var(--accent); font-weight: 600; }
+.sdp-hdr-right { margin-left: auto; display: flex; gap: 6px; align-items: center; }
+.sdp-body { padding: 10px 14px; }
+.sdp-canvas-area {
+  border: 1px solid var(--border); border-radius: 6px;
+  overflow: hidden; background: #fff; position: relative;
+}
+#sign-draw-canvas {
+  display: block; width: 100%; height: 140px;
+  cursor: crosshair; touch-action: none;
+}
+.sdp-canvas-hint {
+  position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+  color: #bbb; font-size: 13px; pointer-events: none; font-style: italic;
+  transition: opacity .2s;
+}
+.sdp-type-area { padding: 8px 0; }
+#sign-type-text {
+  width: 100%; background: transparent; border: none;
+  border-bottom: 2px solid var(--border);
+  color: var(--text-1); font-size: 30px; font-style: italic;
+  font-family: Georgia,serif; outline: none;
+  padding: 6px 4px; text-align: center;
+}
+#sign-type-text:focus { border-bottom-color: var(--accent); }
+.sdp-foot {
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 14px; border-top: 1px solid var(--border);
+}
+.sdp-color { display: flex; align-items: center; gap: 6px; }
+.sdp-color label { font-family: var(--mono); font-size: 10px; color: var(--text-3); text-transform: uppercase; }
+.sdp-color input[type=color] {
+  width: 30px; height: 26px; border-radius: 4px;
+  border: 1px solid var(--border); background: var(--surface);
+  padding: 2px; cursor: pointer;
+}
+/* ── Responsive ────────────────────────────────────────────────────────────── */
+@media (max-width: 600px) {
+  main { padding: 24px 16px 60px; }
+  .badges .badge:not(.badge-local) { display: none; }
+  .dz-inner { padding: 40px 20px; }
+}
+
+/* ── Account button ────────────────────────────────────────────────────────── */
+.acct-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 5px 12px 5px 8px;
+  border-radius: var(--radius);
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  color: var(--text-2);
+  font-size: 13px;
+  font-family: var(--sans);
+  cursor: pointer;
+  transition: var(--transition);
+  position: relative;
+}
+.acct-btn:hover { background: var(--surface2); color: var(--text); }
+.acct-btn svg { width: 15px; height: 15px; flex-shrink: 0; }
+.acct-btn .acct-name {
+  font-weight: 500;
+  color: var(--text);
+  max-width: 120px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Account dropdown ──────────────────────────────────────────────────────── */
+.acct-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 180px;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  box-shadow: 0 8px 32px rgba(0,0,0,.5);
+  z-index: 200;
+  overflow: hidden;
+  animation: chip-in .15s ease;
+}
+.acct-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 10px 14px;
+  background: transparent;
+  color: var(--text-2);
+  font-size: 13px;
+  font-family: var(--sans);
+  text-align: left;
+  border-bottom: 1px solid var(--border);
+  transition: var(--transition);
+  cursor: pointer;
+}
+.acct-dropdown-item:last-child { border-bottom: none; }
+.acct-dropdown-item:hover { background: var(--surface2); color: var(--text); }
+.acct-dropdown-item.danger:hover { background: rgba(255,77,106,.1); color: var(--danger); }
+.acct-dropdown-item svg { width: 14px; height: 14px; flex-shrink: 0; }
+
+/* ── Auth modal ────────────────────────────────────────────────────────────── */
+#auth-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(9,9,15,.85);
+  backdrop-filter: blur(8px);
+}
+.auth-box {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius-lg);
+  padding: 32px 36px;
+  width: 100%;
+  max-width: 380px;
+  animation: chip-in .22s cubic-bezier(.34,1.56,.64,1);
+}
+.auth-title {
+  font-family: var(--display);
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--text);
+  letter-spacing: -.02em;
+  margin-bottom: 4px;
+}
+.auth-sub {
+  font-size: 13px;
+  color: var(--text-2);
+  margin-bottom: 24px;
+}
+.auth-tabs {
+  display: flex;
+  gap: 0;
+  margin-bottom: 24px;
+  border-bottom: 1px solid var(--border);
+}
+.auth-tab {
+  flex: 1;
+  padding: 8px 0;
+  background: transparent;
+  color: var(--text-2);
+  font-size: 13px;
+  font-family: var(--sans);
+  font-weight: 500;
+  border-bottom: 2px solid transparent;
+  cursor: pointer;
+  transition: var(--transition);
+  margin-bottom: -1px;
+}
+.auth-tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+.auth-tab:hover:not(.active) { color: var(--text); }
+.auth-fields { display: flex; flex-direction: column; gap: 14px; margin-bottom: 18px; }
+.auth-field { display: flex; flex-direction: column; gap: 5px; }
+.auth-field label {
+  font-size: 11px;
+  font-family: var(--mono);
+  color: var(--text-2);
+  letter-spacing: .05em;
+}
+.auth-field input {
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 13px;
+  padding: 9px 12px;
+  width: 100%;
+  outline: none;
+  transition: border-color var(--transition);
+}
+.auth-field input:focus { border-color: var(--accent); }
+.auth-error {
+  font-size: 12px;
+  color: var(--danger);
+  font-family: var(--mono);
+  margin-bottom: 14px;
+  min-height: 16px;
+  display: none;
+}
+.auth-error.visible { display: block; }
+.auth-submit {
+  width: 100%;
+  padding: 11px;
+  font-size: 14px;
+  border-radius: var(--radius);
+  margin-bottom: 14px;
+}
+.auth-guest {
+  text-align: center;
+  font-size: 12px;
+  color: var(--text-2);
+}
+.auth-guest button {
+  background: transparent;
+  color: var(--accent);
+  font-size: 12px;
+  font-family: var(--sans);
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 0;
+}
+.auth-guest button:hover { color: var(--text); }
+
+/* ── Save workflow button (cloud) ──────────────────────────────────────────── */
+#btn-cloud-save {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  border-radius: var(--radius);
+  font-size: 12px;
+  font-family: var(--sans);
+  background: transparent;
+  border: 1px solid var(--border2);
+  color: var(--text-2);
+  cursor: pointer;
+  transition: var(--transition);
+  white-space: nowrap;
+}
+#btn-cloud-save:hover:not(:disabled) { background: var(--surface2); color: var(--accent); border-color: rgba(162,255,90,.4); }
+#btn-cloud-save:disabled { opacity: .35; cursor: not-allowed; }
+#btn-cloud-save svg { width: 13px; height: 13px; flex-shrink: 0; }
+
+/* ── Cloud save popover ────────────────────────────────────────────────────── */
+#cloud-save-popover {
+  position: fixed;
+  z-index: 400;
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  padding: 16px;
+  min-width: 260px;
+  box-shadow: 0 8px 32px rgba(0,0,0,.5);
+  animation: chip-in .15s ease;
+}
+#cloud-save-popover label {
+  display: block;
+  font-size: 11px;
+  font-family: var(--mono);
+  color: var(--text-2);
+  letter-spacing: .05em;
+  margin-bottom: 5px;
+}
+#cloud-save-popover input {
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  color: var(--text);
+  font-family: var(--mono);
+  font-size: 12px;
+  padding: 7px 10px;
+  width: 100%;
+  outline: none;
+  transition: border-color var(--transition);
+}
+#cloud-save-popover input:focus { border-color: var(--accent); }
+.popover-actions { display: flex; gap: 8px; margin-top: 10px; }
+.popover-actions button { flex: 1; }
+
+/* ── My Workflows modal ────────────────────────────────────────────────────── */
+#workflows-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 600;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(9,9,15,.85);
+  backdrop-filter: blur(8px);
+}
+.workflows-box {
+  background: var(--surface);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius-lg);
+  width: 100%;
+  max-width: 480px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: chip-in .2s ease;
+}
+.workflows-hdr {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 20px 24px 16px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.workflows-hdr h3 {
+  font-family: var(--display);
+  font-size: 17px;
+  font-weight: 800;
+  flex: 1;
+}
+.workflows-close {
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--surface2);
+  color: var(--text-2);
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: none;
+}
+.workflows-close:hover { color: var(--text); }
+.workflows-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 24px 24px;
+}
+.workflows-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 40px 0;
+  color: var(--text-2);
+  font-size: 13px;
+  text-align: center;
+}
+.workflows-empty svg { width: 32px; height: 32px; color: var(--text-3); }
+.workflow-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  background: var(--bg2);
+  margin-bottom: 8px;
+  cursor: pointer;
+  transition: var(--transition);
+}
+.workflow-item:hover { border-color: var(--accent); background: var(--accent-dim); }
+.workflow-item-info { flex: 1; min-width: 0; }
+.workflow-item-name {
+  font-family: var(--display);
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.workflow-item-meta {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-2);
+  margin-top: 2px;
+}
+.workflow-item-del {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-3);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  border: none;
+  flex-shrink: 0;
+  transition: var(--transition);
+  padding: 0;
+}
+.workflow-item-del:hover { background: rgba(255,77,106,.15); color: var(--danger); }
+.workflow-item-del svg { width: 13px; height: 13px; pointer-events: none; }
+.workflow-item-run {
+  width: 26px;
+  height: 26px;
+  border-radius: 6px;
+  background: rgba(162,255,90,.08);
+  color: var(--accent);
+  border: 1px solid rgba(162,255,90,.2);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: var(--transition);
+  padding: 0;
+}
+.workflow-item-run:hover { background: rgba(162,255,90,.2); border-color: var(--accent); }
+.workflow-item-run svg { width: 11px; height: 11px; pointer-events: none; }
+</style>
+</head>
+<body>
+
+<!-- ── Header ──────────────────────────────────────────────────────────────── -->
+<header>
+  <a class="logo" href="/">
+    <div class="logo-mark">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+        <polyline points="14 2 14 8 20 8"/>
+        <line x1="9" y1="13" x2="15" y2="13"/>
+        <line x1="9" y1="17" x2="13" y2="17"/>
+      </svg>
+    </div>
+    <span class="logo-name">pdfer</span>
+  </a>
+
+  <div class="badges">
+    <span class="badge badge-local">LOCAL</span>
+    <span class="badge">PRIVATE</span>
+    <span class="badge">OPEN SOURCE</span>
+  </div>
+
+  <nav>
+    <a href="https://github.com" target="_blank" rel="noopener">GitHub ↗</a>
+    <!-- Account button -->
+    <div style="position:relative">
+      <button class="acct-btn" id="btn-acct" aria-label="Account">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/>
+          <circle cx="12" cy="7" r="4"/>
+        </svg>
+        <span id="acct-label">Sign in</span>
+      </button>
+      <div id="acct-dropdown" class="acct-dropdown hidden">
+        <button class="acct-dropdown-item" id="btn-my-workflows">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+          </svg>
+          My Workflows
+        </button>
+        <button class="acct-dropdown-item danger" id="btn-sign-out">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
+            <polyline points="16 17 21 12 16 7"/>
+            <line x1="21" y1="12" x2="9" y2="12"/>
+          </svg>
+          Sign out
+        </button>
+      </div>
+    </div>
+  </nav>
+</header>
+
+<!-- ── Main ────────────────────────────────────────────────────────────────── -->
+<main>
+
+  <!-- Upload section -->
+  <section id="sec-upload">
+    <div class="hero-tagline">
+      <h1>Your PDF toolkit.<br><span>100% local.</span></h1>
+      <p>Build multi-step workflows — convert, merge, compress, number — all on your machine.</p>
+    </div>
+
+    <div id="drop-zone" role="button" tabindex="0" aria-label="Upload files">
+      <div class="dz-inner">
+        <svg class="dz-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+          <polyline points="17 8 12 3 7 8"/>
+          <line x1="12" y1="3" x2="12" y2="15"/>
+        </svg>
+        <p class="dz-title">Drop files here</p>
+        <p class="dz-sub">or click to choose — PDF, images, Office files</p>
+        <div class="dz-formats">
+          <span class="dz-fmt">PDF</span>
+          <span class="dz-fmt">PPTX</span>
+          <span class="dz-fmt">DOCX</span>
+          <span class="dz-fmt">PNG</span>
+          <span class="dz-fmt">JPG</span>
+          <span class="dz-fmt">WEBP</span>
+          <span class="dz-fmt">+ more</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="upload-or">or</div>
+
+    <div id="web-zone">
+      <div class="wz-inner">
+        <svg class="wz-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.3" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <line x1="2" y1="12" x2="22" y2="12"/>
+          <path d="M12 2a15.3 15.3 0 010 20M12 2a15.3 15.3 0 000 20"/>
+        </svg>
+        <span class="wz-label">Convert a webpage to PDF</span>
+        <form id="web-zone-form" class="wz-form">
+          <input id="web-url-input" class="wz-input" type="url"
+                 placeholder="https://example.com" autocomplete="off" spellcheck="false">
+          <button class="wz-btn" type="submit">Convert →</button>
+        </form>
+      </div>
+    </div>
+
+    <input type="file" id="file-input" multiple
+           accept=".pdf,.png,.jpg,.jpeg,.gif,.bmp,.tiff,.webp,.pptx,.ppt,.docx,.doc,.xlsx,.xls"
+           class="sr-only">
+    <!-- Hidden input for adding more files to an existing session -->
+    <input type="file" id="add-files-input" multiple
+           accept=".pdf,.png,.jpg,.jpeg,.gif,.bmp,.tiff,.webp,.pptx,.ppt,.docx,.doc,.xlsx,.xls"
+           class="sr-only">
+  </section>
+
+  <!-- Workflow section -->
+  <section id="sec-workflow" class="hidden">
+
+    <!-- Files header -->
+    <div class="section-hdr">
+      <h2>Files</h2>
+      <div class="section-hdr-line"></div>
+      <div class="section-hdr-actions">
+        <button class="btn btn-ghost" id="btn-add-files">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+          </svg>
+          Add files
+        </button>
+        <button class="btn btn-ghost" id="btn-change-files">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/>
+            <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+          </svg>
+          Change files
+        </button>
+      </div>
+    </div>
+    <div id="files-list"></div>
+
+    <!-- Auto-convert banner -->
+    <div id="auto-convert-banner" class="auto-convert-banner hidden">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/>
+      </svg>
+      <span>Non-PDF files detected — <strong>Convert to PDF</strong> will run automatically before PDF-only steps</span>
+    </div>
+
+    <!-- Workflow header -->
+    <div class="section-hdr">
+      <h2>Workflow</h2>
+      <div class="section-hdr-line"></div>
+      <div class="section-hdr-actions">
+        <button class="btn btn-ghost" id="btn-save-workflow" title="Save workflow as JSON">Save</button>
+        <button class="btn btn-ghost" id="btn-load-workflow" title="Load a saved workflow">Load</button>
+        <input id="workflow-file-input" type="file" accept=".json" class="sr-only">
+      </div>
+    </div>
+
+    <!-- Pipeline -->
+    <div class="pipeline-wrap" id="pipeline-wrap">
+      <!-- Start node -->
+      <div class="pipe-node pipe-node-start">
+        <div class="pipe-node-icon">📂</div>
+        <div class="pipe-node-label">INPUT</div>
+        <div class="pipe-node-count" id="pipe-file-count"></div>
+      </div>
+
+      <!-- Steps injected here -->
+      <div id="pipeline-steps"></div>
+
+      <!-- Add step -->
+      <div class="pipe-arrow" id="arrow-add">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="9 18 15 12 9 6"/>
+        </svg>
+      </div>
+      <button id="btn-add-step" aria-label="Add a workflow step">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+        Add step
+      </button>
+
+      <!-- Arrow to end -->
+      <div class="pipe-arrow" id="arrow-end">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="9 18 15 12 9 6"/>
+        </svg>
+      </div>
+
+      <!-- End node -->
+      <div class="pipe-node pipe-node-end">
+        <div class="pipe-node-icon">⬇</div>
+        <div class="pipe-node-label">OUTPUT</div>
+      </div>
+    </div>
+
+    <!-- Run section -->
+    <div id="run-section">
+      <button class="btn btn-primary" id="btn-run" disabled>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polygon points="5 3 19 12 5 21 5 3"/>
+        </svg>
+        Run Workflow
+      </button>
+      <button id="btn-cloud-save" disabled title="Save workflow to your account">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="8 17 12 21 16 17"/>
+          <line x1="12" y1="12" x2="12" y2="21"/>
+          <path d="M20.88 18.09A5 5 0 0018 9h-1.26A8 8 0 103 16.29"/>
+        </svg>
+        Save Workflow
+      </button>
+      <span class="run-hint" id="run-hint">Add at least one step to run</span>
+    </div>
+  </section>
+
+  <!-- Results section -->
+  <section id="sec-results" class="hidden">
+    <div class="results-hdr">
+      <div class="check">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="20 6 9 17 4 12"/>
+        </svg>
+      </div>
+      <h2>Done</h2>
+    </div>
+    <div class="results-files" id="results-files"></div>
+    <div class="results-actions">
+      <button class="btn btn-primary" id="btn-download-all">
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        Download All
+      </button>
+      <button class="btn btn-ghost" id="btn-run-again">Run again</button>
+      <button class="btn btn-ghost" id="btn-start-over">Start over</button>
+    </div>
+  </section>
+
+</main>
+
+<!-- ── Progress overlay ─────────────────────────────────────────────────────── -->
+<div id="progress-overlay" class="hidden">
+  <div class="progress-box">
+    <div class="progress-title" id="progress-title">Processing…</div>
+    <div class="progress-steps" id="progress-steps"></div>
+    <!-- organize pause -->
+    <div class="progress-paused-box hidden" id="progress-paused-box-organize">
+      <p>Your pages are ready — drag them into the order you want, then continue.</p>
+      <button class="btn btn-primary" id="btn-open-arrange" style="width:100%">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+          <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+        </svg>
+        Arrange Pages
+      </button>
+    </div>
+    <!-- split pause -->
+    <div class="progress-paused-box hidden" id="progress-paused-box-split">
+      <p>Select how to split your pages into groups, then continue.</p>
+      <button class="btn btn-primary" id="btn-open-split" style="width:100%">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/>
+          <line x1="20" y1="4" x2="8.12" y2="15.88"/>
+          <line x1="14.47" y1="14.48" x2="20" y2="20"/>
+          <line x1="8.12" y1="8.12" x2="12" y2="12"/>
+        </svg>
+        Define Groups
+      </button>
+    </div>
+    <!-- rename pause -->
+    <div class="progress-paused-box hidden" id="progress-paused-box-rename">
+      <p>Enter a name for each PDF below, then click Continue.</p>
+      <div id="rename-inputs-list"></div>
+      <button class="btn btn-primary" id="btn-rename-continue" style="width:100%;margin-top:10px" onclick="submitRenameNames()">
+        Continue
+      </button>
+    </div>
+    <!-- sign pause -->
+    <div class="progress-paused-box hidden" id="progress-paused-box-sign">
+      <p>Draw a box on the page to position your signature.</p>
+      <button class="btn btn-primary" id="btn-open-sign" style="width:100%">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 19l7-7 3 3-7 7-3-3z"/><path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/>
+        </svg>
+        Open Signature Placer
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Organize pages overlay ────────────────────────────────────────────────── -->
+<div id="organize-overlay" class="hidden">
+  <div class="org-header">
+    <div>
+      <div class="org-title">Arrange Pages</div>
+      <div class="org-sub">Drag to reorder · click ✕ on a tile to remove a page</div>
+    </div>
+    <div class="org-actions">
+      <button class="btn btn-ghost" id="btn-org-reset">Reset order</button>
+      <button class="btn btn-primary" id="btn-org-apply">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="20 6 9 17 4 12"/>
+        </svg>
+        Apply
+      </button>
+      <button class="btn btn-ghost" id="btn-org-close">Cancel</button>
+    </div>
+  </div>
+  <div class="org-body">
+    <div class="org-loading" id="org-loading">
+      <div class="org-loading-spinner"></div>
+      <span>Generating previews…</span>
+    </div>
+    <div class="page-grid hidden" id="page-grid"></div>
+  </div>
+</div>
+
+<!-- ── Split pages overlay ──────────────────────────────────────────────────── -->
+<div id="split-overlay" class="hidden">
+  <div class="org-header">
+    <div>
+      <div class="org-title">Split into Groups</div>
+      <div class="org-sub">Drag pages between groups · each group becomes one PDF · drag a tile to reorder</div>
+    </div>
+    <div class="org-actions">
+      <button class="btn btn-ghost" id="btn-split-add-group">+ Add Group</button>
+      <button class="btn btn-primary" id="btn-split-apply">
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <polyline points="20 6 9 17 4 12"/>
+        </svg>
+        Split
+      </button>
+      <button class="btn btn-ghost" id="btn-split-close">Cancel</button>
+    </div>
+  </div>
+  <div class="org-body">
+    <div class="org-loading hidden" id="split-loading">
+      <div class="org-loading-spinner"></div>
+      <span>Generating previews…</span>
+    </div>
+    <div id="split-groups-container" class="split-groups-wrap"></div>
+  </div>
+</div>
+
+<!-- ── Sign PDF overlay ─────────────────────────────────────────────────────── -->
+<div id="sign-overlay" class="hidden">
+  <!-- Header -->
+  <div class="sign-hdr">
+    <div class="sign-hdr-left">
+      <span class="sign-hdr-title">Sign PDF</span>
+      <span class="sign-hdr-page" id="sign-hdr-page"></span>
+    </div>
+    <div class="sign-hdr-right">
+      <button class="sign-add-btn" id="btn-sign-add" style="position:static;margin:0">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+        Signature
+      </button>
+      <div class="sign-date-wrap">
+        <button class="sign-add-btn" id="btn-sign-date" style="position:static;margin:0">
+          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+          Date ▾
+        </button>
+        <div id="sign-date-dd" class="sign-date-dd hidden">
+          <div class="sign-date-picker-row">
+            <label>Date</label>
+            <input type="date" id="sign-date-input" oninput="_updateDatePreviews()">
+          </div>
+          <button data-datefmt="long"   onclick="placeDateFmt('long')"></button>
+          <button data-datefmt="medium" onclick="placeDateFmt('medium')"></button>
+          <button data-datefmt="us"     onclick="placeDateFmt('us')"></button>
+          <button data-datefmt="eu"     onclick="placeDateFmt('eu')"></button>
+          <button data-datefmt="iso"    onclick="placeDateFmt('iso')"></button>
+          <button data-datefmt="short"  onclick="placeDateFmt('short')"></button>
+        </div>
+      </div>
+      <button class="sign-add-btn" id="btn-sign-text" style="position:static;margin:0">
+        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><polyline points="4 7 4 4 20 4 20 7"/><line x1="9" y1="20" x2="15" y2="20"/><line x1="12" y1="4" x2="12" y2="20"/></svg>
+        Text
+      </button>
+      <button class="btn btn-primary" id="btn-sign-apply">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>
+        Apply
+      </button>
+      <button class="btn btn-ghost" id="btn-sign-close">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Main split -->
+  <div class="sign-main">
+    <!-- Left: large page preview -->
+    <div class="sign-page-area" id="sign-page-area">
+      <div id="sign-page-wrap" class="sign-page-wrap">
+        <img id="sign-page-img" src="" alt="">
+        <!-- signature overlays injected here -->
+      </div>
+      <div class="org-loading hidden" id="sign-loading" style="position:absolute;inset:0;background:rgba(9,9,15,.7);z-index:5">
+        <div class="org-loading-spinner"></div><span>Loading…</span>
+      </div>
+    </div>
+
+    <!-- Right: page sidebar -->
+    <div class="sign-sidebar" id="sign-sidebar"></div>
+  </div>
+
+  <!-- Draw panel (slides up) -->
+  <div id="sign-draw-panel">
+    <div class="sdp-hdr">
+      <div class="sdp-tabs">
+        <button class="sdp-tab active" id="sdp-tab-draw" onclick="sdpSwitchTab('draw')">Draw</button>
+        <button class="sdp-tab" id="sdp-tab-type" onclick="sdpSwitchTab('type')">Type</button>
+      </div>
+      <div class="sdp-hdr-right">
+        <button class="btn btn-ghost" id="btn-sdp-clear" style="padding:3px 10px;font-size:12px">Clear</button>
+        <button class="btn btn-ghost" id="btn-sdp-close" style="padding:3px 8px;font-size:12px">✕</button>
+      </div>
+    </div>
+    <div class="sdp-body">
+      <div id="sdp-canvas-mode">
+        <div class="sdp-canvas-area">
+          <canvas id="sign-draw-canvas"></canvas>
+          <div class="sdp-canvas-hint" id="sdp-hint">Draw your signature here</div>
+        </div>
+      </div>
+      <div id="sdp-type-mode" class="sdp-type-area hidden">
+        <input type="text" id="sign-type-text" placeholder="Type your name…" oninput="sdpTypePreview()">
+      </div>
+    </div>
+    <div class="sdp-foot">
+      <div class="sdp-color">
+        <label for="sdp-color">Color</label>
+        <input type="color" id="sdp-color" value="#1a1a2e">
+      </div>
+      <button class="btn btn-primary" id="btn-sdp-place" style="margin-left:auto">
+        Place on Page ↑
+      </button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Tool picker sheet ────────────────────────────────────────────────────── -->
+<div id="tool-picker" class="hidden">
+  <div class="picker-backdrop" id="picker-backdrop"></div>
+  <div class="picker-sheet">
+    <div class="picker-hdr">
+      <h3>Choose a tool</h3>
+      <button class="picker-close" id="btn-close-picker">✕</button>
+    </div>
+    <div class="tool-grid" id="tool-grid"></div>
+  </div>
+</div>
+
+<!-- ── Auth modal ────────────────────────────────────────────────────────────── -->
+<div id="auth-modal" class="hidden">
+  <div class="auth-box">
+    <div class="auth-title">Welcome to pdfer</div>
+    <div class="auth-sub">Sign in to save and load workflows across sessions.</div>
+    <div class="auth-tabs">
+      <button class="auth-tab active" id="auth-tab-login" onclick="authSwitchTab('login')">Sign in</button>
+      <button class="auth-tab" id="auth-tab-register" onclick="authSwitchTab('register')">Create account</button>
+    </div>
+    <div class="auth-fields">
+      <div class="auth-field">
+        <label for="auth-username">USERNAME</label>
+        <input type="text" id="auth-username" autocomplete="username" placeholder="your_username">
+      </div>
+      <div class="auth-field">
+        <label for="auth-password">PASSWORD</label>
+        <input type="password" id="auth-password" autocomplete="current-password" placeholder="••••••••">
+      </div>
+    </div>
+    <div class="auth-error" id="auth-error"></div>
+    <button class="btn btn-primary auth-submit" id="auth-submit-btn" onclick="authSubmit()">Sign in</button>
+    <div class="auth-guest">
+      <span>Just browsing? </span>
+      <button onclick="closeAuthModal()">Continue as guest</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── Cloud save popover ─────────────────────────────────────────────────────── -->
+<div id="cloud-save-popover" class="hidden">
+  <label for="wf-name-input">WORKFLOW NAME</label>
+  <input type="text" id="wf-name-input" placeholder="e.g. Compress & Merge" autocomplete="off">
+  <div class="popover-actions">
+    <button class="btn btn-ghost" onclick="closeCloudSavePopover()" style="flex:1;padding:7px">Cancel</button>
+    <button class="btn btn-primary" onclick="cloudSaveSubmit()" style="flex:1;padding:7px" id="wf-save-submit-btn">Save</button>
+  </div>
+</div>
+
+<!-- ── My Workflows modal ─────────────────────────────────────────────────────── -->
+<div id="workflows-modal" class="hidden">
+  <div class="workflows-box">
+    <div class="workflows-hdr">
+      <h3>My Workflows</h3>
+      <button class="workflows-close" onclick="closeWorkflowsModal()">✕</button>
+    </div>
+    <div class="workflows-body" id="workflows-list">
+      <!-- filled by JS -->
+    </div>
+  </div>
+</div>
+
+<!-- ── Error toast ──────────────────────────────────────────────────────────── -->
+<div id="error-toast" class="hidden">
+  <span class="toast-icon">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
+    </svg>
+  </span>
+  <span class="toast-msg" id="toast-msg"></span>
+  <button class="toast-close" id="btn-toast-close">✕</button>
+</div>
+
+<script>
+// ── SVG icons ──────────────────────────────────────────────────────────────────
+const ICONS = {
+  convert: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+    <polyline points="14 2 14 8 20 8"/>
+    <path d="M9 15l2 2 4-4"/>
+  </svg>`,
+  merge: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <polygon points="12 2 2 7 12 12 22 7 12 2"/>
+    <polyline points="2 17 12 22 22 17"/>
+    <polyline points="2 12 12 17 22 12"/>
+  </svg>`,
+  split: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="6" cy="6" r="3"/><circle cx="6" cy="18" r="3"/>
+    <line x1="20" y1="4" x2="8.12" y2="15.88"/>
+    <line x1="14.47" y1="14.48" x2="20" y2="20"/>
+    <line x1="8.12" y1="8.12" x2="12" y2="12"/>
+  </svg>`,
+  compress: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/>
+    <polyline points="10 10 14 14"/><polyline points="14 10 10 14"/>
+  </svg>`,
+  page_numbers: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+    <polyline points="14 2 14 8 20 8"/>
+    <line x1="8" y1="13" x2="16" y2="13"/>
+    <line x1="8" y1="17" x2="12" y2="17"/>
+    <line x1="8" y1="9" x2="10" y2="9"/>
+  </svg>`,
+  rotate: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M21.5 2v6h-6M2.5 22v-6h6"/>
+    <path d="M2 11.5a10 10 0 0118.8-4.3M22 12.5a10 10 0 01-18.8 4.2"/>
+  </svg>`,
+  organize: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="3" y="3" width="7" height="7" rx="1"/>
+    <rect x="14" y="3" width="7" height="7" rx="1"/>
+    <rect x="3" y="14" width="7" height="7" rx="1"/>
+    <rect x="14" y="14" width="7" height="7" rx="1"/>
+    <path d="M7 10v1M10 7h1M17 10v1M10 17h1" stroke-width="2"/>
+  </svg>`,
+  watermark: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+    <polyline points="14 2 14 8 20 8"/>
+    <path d="M7 17l10-10" opacity="0.7"/>
+    <path d="M7 13l6-6" opacity="0.5"/>
+    <path d="M11 17l6-6" opacity="0.5"/>
+  </svg>`,
+  rename: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+    <polyline points="14 2 14 8 20 8"/>
+    <path d="M10 13l1.5 1.5L15 11"/>
+    <path d="M8 17h8"/>
+  </svg>`,
+  protect: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+  </svg>`,
+  unlock: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+    <path d="M7 11V7a5 5 0 019.9-1"/>
+  </svg>`,
+  pdf_to_images: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="3" y="3" width="18" height="18" rx="2"/>
+    <circle cx="8.5" cy="8.5" r="1.5"/>
+    <polyline points="21 15 16 10 5 21"/>
+  </svg>`,
+  pdf_to_format: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+    <polyline points="14 2 14 8 20 8"/>
+    <line x1="16" y1="13" x2="8" y2="13"/>
+    <line x1="16" y1="17" x2="8" y2="17"/>
+    <polyline points="10 9 9 9 8 9"/>
+  </svg>`,
+  extract_text: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <line x1="17" y1="10" x2="3" y2="10"/>
+    <line x1="21" y1="6" x2="3" y2="6"/>
+    <line x1="21" y1="14" x2="3" y2="14"/>
+    <line x1="17" y1="18" x2="3" y2="18"/>
+  </svg>`,
+  edit_metadata: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7"/>
+    <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z"/>
+  </svg>`,
+  grayscale: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <circle cx="12" cy="12" r="9"/>
+    <path d="M12 3a9 9 0 010 18z" fill="currentColor" opacity="0.25" stroke="none"/>
+  </svg>`,
+  interleave: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M16 3h5v5M4 20L21 3"/>
+    <path d="M21 16v5h-5"/>
+    <path d="M15 15l5.1 5.1"/>
+    <path d="M4 4l5 5"/>
+  </svg>`,
+  flatten: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <line x1="2" y1="20" x2="22" y2="20"/>
+    <path d="M5 20V8l7-5 7 5v12"/>
+    <rect x="9" y="14" width="6" height="6"/>
+  </svg>`,
+  header_footer: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+    <polyline points="14 2 14 8 20 8"/>
+    <line x1="6" y1="11" x2="18" y2="11"/>
+    <line x1="6" y1="17" x2="18" y2="17"/>
+  </svg>`,
+  extract_images: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+    <polyline points="7 10 12 15 17 10"/>
+    <line x1="12" y1="15" x2="12" y2="3"/>
+    <rect x="3" y="3" width="8" height="6" rx="1" opacity="0.4"/>
+    <circle cx="5.5" cy="5.5" r="1" fill="currentColor" stroke="none" opacity="0.6"/>
+  </svg>`,
+  pdf_to_markdown: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <rect x="2" y="3" width="20" height="18" rx="2"/>
+    <path d="M7 8v8M7 12l3-3 3 3M16 8v8"/>
+  </svg>`,
+  sign_pdf: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M12 19l7-7 3 3-7 7-3-3z"/>
+    <path d="M18 13l-1.5-7.5L2 2l3.5 14.5L13 18l5-5z"/>
+    <path d="M2 2l7.586 7.586"/>
+    <circle cx="11" cy="11" r="2"/>
+  </svg>`,
+  pdf_to_html: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <polyline points="16 18 22 12 16 6"/>
+    <polyline points="8 6 2 12 8 18"/>
+    <line x1="13" y1="4" x2="11" y2="20" opacity="0.5"/>
+  </svg>`,
+  file: `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+    <polyline points="14 2 14 8 20 8"/>
+  </svg>`,
+};
+
+const EXT_COLORS = {
+  pdf:  { bg: '#1a0a0a', fg: '#ff6b6b', label: 'PDF' },
+  pptx: { bg: '#1a0d06', fg: '#ff9533', label: 'PPT' },
+  ppt:  { bg: '#1a0d06', fg: '#ff9533', label: 'PPT' },
+  docx: { bg: '#06101a', fg: '#4da6ff', label: 'DOC' },
+  doc:  { bg: '#06101a', fg: '#4da6ff', label: 'DOC' },
+  xlsx: { bg: '#061a0a', fg: '#4dff88', label: 'XLS' },
+  xls:  { bg: '#061a0a', fg: '#4dff88', label: 'XLS' },
+  png:  { bg: '#10061a', fg: '#c47dff', label: 'PNG' },
+  jpg:  { bg: '#10061a', fg: '#c47dff', label: 'JPG' },
+  jpeg: { bg: '#10061a', fg: '#c47dff', label: 'JPG' },
+  webp: { bg: '#10061a', fg: '#c47dff', label: 'WEBP' },
+};
+
+function extColor(ext) {
+  return EXT_COLORS[ext] || { bg: '#10101a', fg: '#8888aa', label: ext.toUpperCase().slice(0,4) };
+}
+
+// ── Constants ─────────────────────────────────────────────────────────────────
+const PDF_ONLY_TOOLS = new Set(['merge','split','compress','page_numbers','rotate','watermark','organize_pages','rename']);
+
+// ── State ──────────────────────────────────────────────────────────────────────
+const state = {
+  sessionId:  null,
+  files:      [],     // from /api/upload
+  steps:      [],     // [{id, toolId, params, open}]
+  tools:      [],     // from /api/tools
+  running:    false,
+  paused:     false,  // true when workflow is waiting at organize_pages
+  results:    null,
+};
+
+let stepCounter = 0;
+
+// ── Helpers ────────────────────────────────────────────────────────────────────
+function fmtSize(bytes) {
+  if (bytes < 1024)        return bytes + ' B';
+  if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+  return (bytes / (1024 * 1024)).toFixed(2) + ' MB';
+}
+
+function showError(msg) {
+  document.getElementById('toast-msg').textContent = msg;
+  document.getElementById('error-toast').classList.remove('hidden');
+  clearTimeout(showError._t);
+  showError._t = setTimeout(() => document.getElementById('error-toast').classList.add('hidden'), 7000);
+}
+
+function getTool(id) { return state.tools.find(t => t.id === id); }
+
+// ── DOM refs ──────────────────────────────────────────────────────────────────
+const $ = id => document.getElementById(id);
+const dropZone        = $('drop-zone');
+const fileInput       = $('file-input');
+const secUpload       = $('sec-upload');
+const secWorkflow     = $('sec-workflow');
+const secResults      = $('sec-results');
+const filesList       = $('files-list');
+const pipelineSteps   = $('pipeline-steps');
+const pipeFileCount   = $('pipe-file-count');
+const btnRun          = $('btn-run');
+const runHint         = $('run-hint');
+const progressOverlay = $('progress-overlay');
+const progressSteps   = $('progress-steps');
+const toolPicker      = $('tool-picker');
+const toolGrid        = $('tool-grid');
+const btnAddStep      = $('btn-add-step');
+const secResults_     = $('sec-results');
+
+// ── Organize state ────────────────────────────────────────────────────────────
+const org = {
+  stepId:      null,
+  resumeMode:  false,
+  tiles:       [],
+  origTiles:   [],
+  dragging:    null,   // array of display indices being dragged
+  selected:    new Set(),
+  lastClicked: null,
+};
+
+// ── Init ───────────────────────────────────────────────────────────────────────
+async function init() {
+  // Restore auth session from localStorage
+  authLoad();
+
+  // Load tool definitions
+  try {
+    const r = await fetch('/api/tools');
+    state.tools = await r.json();
+    renderToolGrid();
+  } catch(e) {
+    showError('Could not connect to pdfer server.');
+  }
+  bindEvents();
+}
+
+// ── Events ────────────────────────────────────────────────────────────────────
+function bindEvents() {
+  // Upload zone
+  dropZone.addEventListener('click',    () => fileInput.click());
+  dropZone.addEventListener('keydown',  e => { if (e.key==='Enter'||e.key===' ') fileInput.click(); });
+
+  // Webpage-to-PDF box
+  $('web-zone-form').addEventListener('submit', async e => {
+    e.preventDefault();
+    const url = $('web-url-input').value.trim();
+    if (!url) return;
+    try {
+      const r    = await fetch('/api/new-session', { method: 'POST' });
+      const data = await r.json();
+      if (!r.ok) throw new Error(data.error || 'Failed to create session');
+      state.sessionId = data.session_id;
+      state.files     = [];
+      state.results   = null;
+      showWorkflow();
+      // Pre-add Webpage to PDF step with the URL already filled in
+      addStep('webpage_to_pdf');
+      const step = state.steps[state.steps.length - 1];
+      step.params.url = url;
+      renderPipelineSteps();
+    } catch(err) {
+      showError(err.message);
+    }
+  });
+  fileInput.addEventListener('change',  () => handleFiles(fileInput.files));
+
+  dropZone.addEventListener('dragover',  e => { e.preventDefault(); dropZone.classList.add('drag-over'); });
+  dropZone.addEventListener('dragleave', e => { if (!dropZone.contains(e.relatedTarget)) dropZone.classList.remove('drag-over'); });
+  dropZone.addEventListener('drop',      e => {
+    e.preventDefault();
+    dropZone.classList.remove('drag-over');
+    handleFiles(e.dataTransfer.files);
+  });
+
+  // Pipeline
+  btnAddStep.addEventListener('click',     openPicker);
+  $('btn-close-picker').addEventListener('click', closePicker);
+  $('picker-backdrop').addEventListener('click',  closePicker);
+
+  // Run
+  btnRun.addEventListener('click', runWorkflow);
+
+  // Results
+  $('btn-download-all').addEventListener('click', () => {
+    window.location.href = `/api/download-all/${state.sessionId}`;
+  });
+  $('btn-run-again').addEventListener('click', () => {
+    secResults.classList.add('hidden');
+    secWorkflow.classList.remove('hidden');
+    // Reset step visual state
+    document.querySelectorAll('.step-card').forEach(c => {
+      c.classList.remove('done','running');
+    });
+  });
+  $('btn-start-over').addEventListener('click', startOver);
+  $('btn-change-files').addEventListener('click', startOver);
+
+  // Organize overlay
+  $('btn-org-close').addEventListener('click', closeOrganize);
+  $('btn-org-reset').addEventListener('click', () => { org.tiles = [...org.origTiles]; renderPageGrid(); });
+  $('btn-org-apply').addEventListener('click', applyOrganize);
+  $('btn-open-arrange').addEventListener('click', () => openOrganize(null, true));
+  $('btn-split-close').addEventListener('click', closeSplit);
+  $('btn-split-apply').addEventListener('click', applySplit);
+  $('btn-split-add-group').addEventListener('click', addSplitGroup);
+
+  // Add more files
+  $('btn-add-files').addEventListener('click', () => $('add-files-input').click());
+  $('add-files-input').addEventListener('change', () => handleAddMoreFiles($('add-files-input').files));
+
+  // Save/load workflow
+  $('btn-save-workflow').addEventListener('click', saveWorkflow);
+  $('btn-load-workflow').addEventListener('click', () => {
+    if (auth.token) openWorkflowsModal();
+    else $('workflow-file-input').click();
+  });
+  $('workflow-file-input').addEventListener('change', loadWorkflow);
+
+  // Error toast close
+  $('btn-toast-close').addEventListener('click', () => $('error-toast').classList.add('hidden'));
+
+  // Account button
+  $('btn-acct').addEventListener('click', toggleAcctDropdown);
+  $('btn-my-workflows').addEventListener('click', openWorkflowsModal);
+  $('btn-sign-out').addEventListener('click', signOut);
+
+  // Cloud save button
+  $('btn-cloud-save').addEventListener('click', openCloudSavePopover);
+
+  // Workflows modal backdrop close
+  $('workflows-modal').addEventListener('click', e => {
+    if (e.target === $('workflows-modal')) closeWorkflowsModal();
+  });
+
+  // Auth modal backdrop close
+  $('auth-modal').addEventListener('click', e => {
+    if (e.target === $('auth-modal')) closeAuthModal();
+  });
+
+  // Auth form keyboard shortcut
+  [$('auth-username'), $('auth-password')].forEach(el => {
+    el.addEventListener('keydown', e => { if (e.key === 'Enter') authSubmit(); });
+  });
+
+  // Cloud save name field keyboard shortcut
+  $('wf-name-input').addEventListener('keydown', e => { if (e.key === 'Enter') cloudSaveSubmit(); });
+}
+
+// ── File handling ─────────────────────────────────────────────────────────────
+async function handleFiles(fileList) {
+  if (!fileList || fileList.length === 0) return;
+
+  const formData = new FormData();
+  for (const f of fileList) formData.append('files', f);
+
+  // Show loading state on drop zone
+  dropZone.style.opacity = '.5';
+  dropZone.style.pointerEvents = 'none';
+
+  try {
+    const r = await fetch('/api/upload', { method: 'POST', body: formData });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'Upload failed');
+
+    state.sessionId = data.session_id;
+    state.files     = data.files;
+    state.results   = null;
+
+    showWorkflow();
+  } catch(e) {
+    showError(e.message);
+  } finally {
+    dropZone.style.opacity = '';
+    dropZone.style.pointerEvents = '';
+    fileInput.value = '';
+  }
+}
+
+function renderFilesList() {
+  filesList.innerHTML = '';
+  for (const f of state.files) {
+    const ec = extColor(f.ext);
+    const chip = document.createElement('div');
+    chip.className = 'file-chip';
+    chip.innerHTML = `
+      <div class="file-chip-icon" style="background:${ec.bg};color:${ec.fg}">${ec.label}</div>
+      <div class="file-chip-info">
+        <div class="file-chip-name" title="${escHtml(f.name)}">${escHtml(f.name)}</div>
+        <div class="file-chip-size">${fmtSize(f.size)}</div>
+      </div>
+      <button class="file-chip-del" title="Remove this file" aria-label="Remove ${escHtml(f.name)}">✕</button>`;
+    chip.querySelector('.file-chip-del').addEventListener('click', () => deleteFile(f.safe_name));
+    filesList.appendChild(chip);
+  }
+  pipeFileCount.textContent = `${state.files.length} file${state.files.length===1?'':'s'}`;
+}
+
+function showWorkflow() {
+  secUpload.classList.add('hidden');
+  secResults.classList.add('hidden');
+  secWorkflow.classList.remove('hidden');
+
+  renderFilesList();
+  updateRunButton();
+  updateAutoConvertBanner();
+}
+
+function updateAutoConvertBanner() {
+  const banner = $('auto-convert-banner');
+  if (!banner) return;
+  const hasNonPdf    = state.files.some(f => f.ext !== 'pdf');
+  const needsPdf     = state.steps.some(s => PDF_ONLY_TOOLS.has(s.toolId));
+  const alreadyConvt = state.steps.length > 0 && state.steps[0].toolId === 'convert_to_pdf';
+  if (hasNonPdf && needsPdf && !alreadyConvt) {
+    banner.classList.remove('hidden');
+  } else {
+    banner.classList.add('hidden');
+  }
+}
+
+// ── Per-file delete ───────────────────────────────────────────────────────────
+async function deleteFile(safeName) {
+  if (!state.sessionId) return;
+  try {
+    const r = await fetch(`/api/session/${state.sessionId}/file/${encodeURIComponent(safeName)}`, {
+      method: 'DELETE',
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'Delete failed');
+
+    state.files = data.files;
+
+    if (state.files.length === 0) {
+      // No files left — reset to upload state
+      startOver();
+    } else {
+      renderFilesList();
+      pipeFileCount.textContent = `${state.files.length} file${state.files.length===1?'':'s'}`;
+      updateRunButton();
+      updateAutoConvertBanner();
+    }
+  } catch(e) {
+    showError(e.message);
+  }
+}
+
+// ── Add more files ─────────────────────────────────────────────────────────────
+async function handleAddMoreFiles(fileList) {
+  if (!fileList || fileList.length === 0) return;
+  if (!state.sessionId) return;
+
+  const formData = new FormData();
+  for (const f of fileList) formData.append('files', f);
+
+  const btn = $('btn-add-files');
+  if (btn) { btn.disabled = true; btn.style.opacity = '.5'; }
+
+  try {
+    const r = await fetch(`/api/session/${state.sessionId}/add_files`, {
+      method: 'POST',
+      body: formData,
+    });
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'Upload failed');
+
+    // Merge newly added files into state
+    state.files = state.files.concat(data.files);
+    renderFilesList();
+    pipeFileCount.textContent = `${state.files.length} file${state.files.length===1?'':'s'}`;
+    updateRunButton();
+    updateAutoConvertBanner();
+  } catch(e) {
+    showError(e.message);
+  } finally {
+    if (btn) { btn.disabled = false; btn.style.opacity = ''; }
+    $('add-files-input').value = '';
+  }
+}
+
+// ── Pipeline ──────────────────────────────────────────────────────────────────
+function renderPipelineSteps() {
+  pipelineSteps.innerHTML = '';
+
+  for (let i = 0; i < state.steps.length; i++) {
+    const step = state.steps[i];
+    const tool = getTool(step.toolId);
+    if (!tool) continue;
+
+    // Arrow before step
+    const arrowEl = document.createElement('div');
+    arrowEl.className = 'pipe-arrow';
+    arrowEl.id = `arrow-before-${step.id}`;
+    arrowEl.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>`;
+
+    // Step entry wrapper
+    const entry = document.createElement('div');
+    entry.className = 'step-entry';
+    entry.id = `step-entry-${step.id}`;
+
+    // Step card
+    const card = document.createElement('div');
+    card.className = 'step-card';
+    card.id = `step-card-${step.id}`;
+    card.draggable = true;
+    card.dataset.stepId = step.id;
+    card.innerHTML = `
+      <div class="step-accent-bar"></div>
+      <div class="step-body">
+        <div class="step-top">
+          <div class="step-icon">${ICONS[tool.icon] || ICONS.file}</div>
+          <div class="step-meta">
+            <div class="step-num">STEP ${i+1}</div>
+            <div class="step-name">${escHtml(tool.name)}</div>
+          </div>
+          <div class="step-actions">
+            <button class="step-btn" onclick="moveStep('${step.id}',-1)" title="Move left">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"/></svg>
+            </button>
+            <button class="step-btn" onclick="moveStep('${step.id}',1)" title="Move right">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"/></svg>
+            </button>
+            <button class="step-btn del" onclick="removeStep('${step.id}')" title="Remove step">
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+            </button>
+          </div>
+        </div>
+      </div>`;
+
+    // Interactive tools (Organize Pages) get a special "Arrange" button
+    if (tool.interactive) {
+      const arranged = step.params.order && step.params.order.length > 0;
+      const arrangeBtn = document.createElement('button');
+      arrangeBtn.className = 'step-arrange-btn';
+      arrangeBtn.innerHTML = `
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
+          <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
+        </svg>
+        ${arranged ? `<span class="step-arrange-configured">${step.params.order.length} pages arranged</span>` : 'Arrange pages…'}`;
+      arrangeBtn.addEventListener('click', () => openOrganize(step.id));
+      card.appendChild(arrangeBtn);
+    } else if (tool.params && tool.params.filter(p => p.type !== 'hidden').length > 0) {
+      // Normal configurable params
+      const toggle = document.createElement('button');
+      toggle.className = `step-params-toggle ${step.open ? 'open' : ''}`;
+      toggle.id = `toggle-${step.id}`;
+      toggle.setAttribute('aria-expanded', step.open ? 'true' : 'false');
+      toggle.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"/></svg> Configure`;
+      toggle.addEventListener('click', () => toggleParams(step.id));
+      card.appendChild(toggle);
+    }
+
+    // Drag events
+    card.addEventListener('dragstart', e => {
+      e.dataTransfer.setData('text/plain', step.id);
+      setTimeout(() => card.classList.add('dragging'), 0);
+    });
+    card.addEventListener('dragend', () => {
+      card.classList.remove('dragging');
+      document.querySelectorAll('.step-card.drag-target').forEach(c => c.classList.remove('drag-target'));
+    });
+    card.addEventListener('dragover', e => {
+      e.preventDefault();
+      document.querySelectorAll('.step-card.drag-target').forEach(c => c.classList.remove('drag-target'));
+      card.classList.add('drag-target');
+    });
+    card.addEventListener('dragleave', () => card.classList.remove('drag-target'));
+    card.addEventListener('drop', e => {
+      e.preventDefault();
+      const dragId = e.dataTransfer.getData('text/plain');
+      card.classList.remove('drag-target');
+      if (dragId !== step.id) reorderStep(dragId, step.id);
+    });
+
+    entry.appendChild(card);
+
+    // Params panel (inline below card)
+    if (step.open && tool.params && tool.params.length > 0) {
+      entry.appendChild(buildParamsPanel(step, tool));
+    }
+
+    pipelineSteps.appendChild(arrowEl);
+    pipelineSteps.appendChild(entry);
+  }
+}
+
+function buildParamsPanel(step, tool) {
+  const panel = document.createElement('div');
+  panel.className = 'params-panel';
+  panel.id = `params-${step.id}`;
+
+  for (const param of tool.params) {
+    const val = step.params[param.id] !== undefined ? step.params[param.id] : param.default;
+    const field = document.createElement('div');
+    field.className = 'field';
+
+    if (param.type === 'hidden') continue;
+
+    let inputHtml = '';
+    if (param.type === 'select') {
+      inputHtml = `<select id="param-${step.id}-${param.id}" onchange="updateParam('${step.id}','${param.id}',this.value)">
+        ${(param.options||[]).map(o => `<option value="${o}" ${o==val?'selected':''}>${o}</option>`).join('')}
+      </select>`;
+    } else if (param.type === 'color') {
+      inputHtml = `<input type="color" id="param-${step.id}-${param.id}" value="${val}" onchange="updateParam('${step.id}','${param.id}',this.value)">`;
+    } else if (param.type === 'checkbox') {
+      const chk = val ? 'checked' : '';
+      inputHtml = `<label class="checkbox-label"><input type="checkbox" id="param-${step.id}-${param.id}" ${chk} onchange="updateParam('${step.id}','${param.id}',this.checked)"> ${escHtml(param.name)}</label>`;
+      field.innerHTML = inputHtml;
+      panel.appendChild(field);
+      continue;
+    } else if (param.type === 'template_text') {
+      const ph = param.placeholder ? `placeholder="${escHtml(param.placeholder)}"` : '';
+      const tokens = (param.tokens || []).map(tok =>
+        `<button type="button" class="token-btn" onclick="insertToken('${step.id}','${param.id}','${tok}')">${tok}</button>`
+      ).join('');
+      inputHtml = `
+        <input type="text" id="param-${step.id}-${param.id}" value="${escHtml(String(val))}" ${ph}
+          onchange="updateParam('${step.id}','${param.id}',this.value)"
+          oninput="updateParam('${step.id}','${param.id}',this.value)">
+        <div class="token-row">${tokens}</div>`;
+    } else {
+      const ph = param.placeholder ? `placeholder="${escHtml(param.placeholder)}"` : '';
+      inputHtml = `<input type="${param.type||'text'}" id="param-${step.id}-${param.id}" value="${escHtml(String(val))}" ${ph} onchange="updateParam('${step.id}','${param.id}',this.value)" oninput="updateParam('${step.id}','${param.id}',this.value)">`;
+    }
+
+    field.innerHTML = `<label for="param-${step.id}-${param.id}">${escHtml(param.name)}</label>${inputHtml}`;
+    panel.appendChild(field);
+  }
+
+  return panel;
+}
+
+function insertToken(stepId, paramId, token) {
+  const input = document.getElementById(`param-${stepId}-${paramId}`);
+  if (!input) return;
+  const start = input.selectionStart, end = input.selectionEnd;
+  const val   = input.value;
+  input.value = val.slice(0, start) + token + val.slice(end);
+  input.selectionStart = input.selectionEnd = start + token.length;
+  input.focus();
+  updateParam(stepId, paramId, input.value);
+}
+
+function toggleParams(stepId) {
+  const step = state.steps.find(s => s.id === stepId);
+  if (!step) return;
+  step.open = !step.open;
+  renderPipelineSteps();
+}
+
+// Global functions called from inline handlers
+window.moveStep    = moveStep;
+window.removeStep  = removeStep;
+window.updateParam = updateParam;
+window.insertToken = insertToken;
+
+function moveStep(id, dir) {
+  const idx = state.steps.findIndex(s => s.id === id);
+  if (idx < 0) return;
+  const newIdx = idx + dir;
+  if (newIdx < 0 || newIdx >= state.steps.length) return;
+  [state.steps[idx], state.steps[newIdx]] = [state.steps[newIdx], state.steps[idx]];
+  renderPipelineSteps();
+}
+
+function removeStep(id) {
+  state.steps = state.steps.filter(s => s.id !== id);
+  renderPipelineSteps();
+  updateRunButton();
+  updateAutoConvertBanner();
+}
+
+function reorderStep(dragId, targetId) {
+  const from = state.steps.findIndex(s => s.id === dragId);
+  const to   = state.steps.findIndex(s => s.id === targetId);
+  if (from < 0 || to < 0) return;
+  const [item] = state.steps.splice(from, 1);
+  state.steps.splice(to, 0, item);
+  renderPipelineSteps();
+}
+
+function updateParam(stepId, paramId, value) {
+  const step = state.steps.find(s => s.id === stepId);
+  if (step) step.params[paramId] = value;
+}
+
+function updateRunButton() {
+  const hasSteps = state.steps.length > 0;
+  btnRun.disabled = !hasSteps;
+  runHint.textContent = hasSteps
+    ? `${state.steps.length} step${state.steps.length===1?'':'s'} · ${state.files.length} file${state.files.length===1?'':'s'}`
+    : 'Add at least one step to run';
+  updateCloudSaveButton();
+}
+
+// ── Tool picker ───────────────────────────────────────────────────────────────
+function renderToolGrid() {
+  toolGrid.innerHTML = '';
+  for (const tool of state.tools) {
+    const card = document.createElement('button');
+    card.className = 'tool-card';
+    card.innerHTML = `
+      <div class="tool-card-icon">${ICONS[tool.icon] || ICONS.file}</div>
+      <div class="tool-card-info">
+        <div class="tool-card-name">${escHtml(tool.name)}</div>
+        <div class="tool-card-desc">${escHtml(tool.description)}</div>
+      </div>`;
+    card.addEventListener('click', () => addStep(tool.id));
+    toolGrid.appendChild(card);
+  }
+}
+
+function openPicker()  { toolPicker.classList.remove('hidden'); }
+function closePicker() { toolPicker.classList.add('hidden'); }
+
+function addStep(toolId) {
+  const tool = getTool(toolId);
+  if (!tool) return;
+
+  // Build default params
+  const params = {};
+  for (const p of (tool.params || [])) {
+    params[p.id] = p.default !== undefined ? p.default : '';
+  }
+
+  state.steps.push({
+    id:     `s${++stepCounter}`,
+    toolId,
+    params,
+    open:   tool.params && tool.params.length > 0,
+  });
+
+  closePicker();
+  renderPipelineSteps();
+  updateRunButton();
+  updateAutoConvertBanner();
+
+  // Scroll pipeline to end
+  setTimeout(() => {
+    $('pipeline-wrap').scrollTo({ left: 99999, behavior: 'smooth' });
+  }, 50);
+}
+
+// ── Workflow run ──────────────────────────────────────────────────────────────
+function buildProgressUI(steps) {
+  $('progress-title').textContent = 'Processing…';
+  $('progress-paused-box-organize').classList.add('hidden');
+  $('progress-paused-box-rename').classList.add('hidden');
+  $('progress-paused-box-split').classList.add('hidden');
+  $('progress-paused-box-sign').classList.add('hidden');
+  progressSteps.innerHTML = steps.map((step, i) => {
+    const tool = getTool(step.toolId || step.tool);
+    const name = tool ? tool.name : (step.toolId || step.tool);
+    return `<div class="progress-step" id="pstep-${i}">
+      <div class="p-step-indicator" id="pind-${i}">${i+1}</div>
+      <span>${escHtml(name)}</span>
+    </div>`;
+  }).join('');
+}
+
+function markStepsDone(upToIndex) {
+  for (let i = 0; i <= upToIndex; i++) {
+    $(`pstep-${i}`)?.classList.remove('active');
+    $(`pstep-${i}`)?.classList.add('done');
+    const ind = $(`pind-${i}`);
+    if (ind) ind.innerHTML = `<svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg>`;
+    document.querySelectorAll('.step-card')[i]?.classList.remove('running');
+    document.querySelectorAll('.step-card')[i]?.classList.add('done');
+  }
+}
+
+async function runWorkflow() {
+  if (state.running || state.steps.length === 0) return;
+  state.running   = true;
+  state.paused    = false;
+  btnRun.disabled = true;
+
+  const allSteps = state.steps.map(s => ({ toolId: s.toolId, tool: s.toolId, params: s.params }));
+  buildProgressUI(allSteps);
+  progressOverlay.classList.remove('hidden');
+
+  let animIdx = 0;
+  const animTimer = setInterval(() => {
+    if (animIdx < allSteps.length) {
+      $(`pstep-${animIdx}`)?.classList.add('active');
+      document.querySelectorAll('.step-card')[animIdx]?.classList.add('running');
+      animIdx++;
+    }
+  }, 500);
+
+  try {
+    const r    = await fetch('/api/run', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({
+        session_id: state.sessionId,
+        steps:      state.steps.map(s => ({ tool: s.toolId, params: s.params })),
+      }),
+    });
+    const data = await r.json();
+    clearInterval(animTimer);
+
+    if (!r.ok) {
+      progressOverlay.classList.add('hidden');
+      const where = data.tool ? ` (${data.tool})` : '';
+      throw new Error((data.error || 'Workflow failed') + where);
+    }
+
+    if (data.paused) {
+      state.paused  = true;
+      state.running = false;
+
+      // Mark completed steps as done
+      markStepsDone(data.steps_completed - 1);
+
+      // Mark the paused step visually
+      const pi = data.pause_step_index;
+      $(`pstep-${pi}`)?.classList.add('paused');
+      if ($(`pind-${pi}`)) $(`pind-${pi}`).textContent = '⏸';
+
+      $('progress-title').textContent = 'Waiting for you…';
+
+      if (data.pause_type === 'split') {
+        // ── Split pause ──
+        $('progress-paused-box-split').classList.remove('hidden');
+        $('btn-open-split').onclick = () => openSplit(null, true);
+      } else if (data.pause_type === 'rename') {
+        // ── Rename pause: show per-file name inputs ──
+        const list = $('rename-inputs-list');
+        list.innerHTML = '';
+        (data.file_names || []).forEach((fname, idx) => {
+          const preview = (data.name_previews || [])[idx] || fname.replace(/\.pdf$/i,'');
+          const row = document.createElement('div');
+          row.className = 'rename-input-row';
+          row.innerHTML = `
+            <span class="rename-orig-name">${escHtml(fname)}</span>
+            <input type="text" class="rename-name-input" data-idx="${idx}"
+              value="${escHtml(preview)}" placeholder="new name (no .pdf)">`;
+          list.appendChild(row);
+        });
+        $('progress-paused-box-rename').classList.remove('hidden');
+      } else if (data.pause_type === 'sign') {
+        // ── Sign pause ──
+        $('progress-paused-box-sign').classList.remove('hidden');
+        $('btn-open-sign').onclick = () => openSign(null, true);
+      } else {
+        // ── Organize pause ──
+        $('progress-paused-box-organize').classList.remove('hidden');
+      }
+      return;
+    }
+
+    // ── Workflow completed ──
+    progressOverlay.classList.add('hidden');
+    markStepsDone(allSteps.length - 1);
+
+    if (data.auto_converted) {
+      const notice = document.createElement('div');
+      notice.className = 'auto-convert-banner';
+      notice.style.marginBottom = '12px';
+      notice.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg><span>Files were automatically converted to PDF before processing</span>`;
+      $('sec-results').insertBefore(notice, $('results-files'));
+    }
+
+    state.results = data.outputs;
+    showResults(data.outputs);
+
+  } catch(e) {
+    clearInterval(animTimer);
+    progressOverlay.classList.add('hidden');
+    showError(e.message);
+    btnRun.disabled = false;
+    document.querySelectorAll('.step-card.running').forEach(c => c.classList.remove('running'));
+  } finally {
+    if (!state.paused) state.running = false;
+  }
+}
+
+function showResults(outputs) {
+  secWorkflow.classList.add('hidden');
+  secResults.classList.remove('hidden');
+
+  const filesEl = $('results-files');
+  filesEl.innerHTML = '';
+
+  outputs.forEach((f, i) => {
+    const row = document.createElement('div');
+    row.className = 'result-file';
+    row.style.animationDelay = `${i * 60}ms`;
+    row.innerHTML = `
+      <div class="result-file-icon">${ICONS.file}</div>
+      <div class="result-file-info">
+        <div class="result-file-name">${escHtml(f.name)}</div>
+        <div class="result-file-size">${fmtSize(f.size)}</div>
+      </div>
+      <a class="btn btn-ghost" href="/api/download/${state.sessionId}/${f.index}" download>
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4"/>
+          <polyline points="7 10 12 15 17 10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        Download
+      </a>`;
+    filesEl.appendChild(row);
+  });
+}
+
+// ── Organize pages ────────────────────────────────────────────────────────────
+async function openOrganize(stepId, resumeMode = false) {
+  org.stepId     = stepId;
+  org.resumeMode = resumeMode;
+
+  $('organize-overlay').classList.remove('hidden');
+  $('org-loading').classList.remove('hidden');
+  $('page-grid').classList.add('hidden');
+
+  try {
+    // In resume mode the server has already run previous steps, so /api/thumbnails
+    // returns thumbnails of the intermediate files (the actual pages to arrange).
+    const r    = await fetch(`/api/thumbnails/${state.sessionId}`);
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'Failed to load thumbnails');
+
+    org.origTiles = [...data.thumbnails];
+    org.tiles     = [...data.thumbnails];
+
+    $('org-loading').classList.add('hidden');
+    $('page-grid').classList.remove('hidden');
+    renderPageGrid();
+  } catch(e) {
+    $('org-loading').classList.add('hidden');
+    closeOrganize();
+    showError('Could not load page previews: ' + e.message);
+  }
+}
+
+function closeOrganize() {
+  $('organize-overlay').classList.add('hidden');
+  org.stepId      = null;
+  org.resumeMode  = false;
+  org.selected    = new Set();
+  org.lastClicked = null;
+}
+
+async function applyOrganize() {
+  const order = org.tiles.map(t => t.global_index);
+
+  if (org.resumeMode) {
+    // ── Mid-run: send page order to server and run remaining steps ──
+    closeOrganize();
+    $('progress-title').textContent = 'Finishing up…';
+    $('progress-paused-box-organize').classList.add('hidden');
+    $('progress-paused-box-rename').classList.add('hidden');
+    $('progress-paused-box-split').classList.add('hidden');
+    $('progress-paused-box-sign').classList.add('hidden');
+
+    try {
+      const r    = await fetch('/api/resume', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ session_id: state.sessionId, order }),
+      });
+      const data = await r.json();
+      progressOverlay.classList.add('hidden');
+      state.paused  = false;
+      state.running = false;
+
+      if (!r.ok) throw new Error(data.error || 'Resume failed');
+      state.results = data.outputs;
+      showResults(data.outputs);
+    } catch(e) {
+      progressOverlay.classList.add('hidden');
+      state.paused  = false;
+      state.running = false;
+      btnRun.disabled = false;
+      showError(e.message);
+    }
+  } else {
+    // ── Pre-run preview: just save the order to the step's params ──
+    const step = state.steps.find(s => s.id === org.stepId);
+    if (step) step.params.order = order;
+    closeOrganize();
+    renderPipelineSteps();
+  }
+}
+
+async function submitRenameNames() {
+  const inputs = $('rename-inputs-list').querySelectorAll('.rename-name-input');
+  const names  = Array.from(inputs).map(inp => inp.value.trim() || inp.placeholder);
+
+  $('progress-paused-box-rename').classList.add('hidden');
+  $('progress-title').textContent = 'Finishing up…';
+
+  try {
+    const r    = await fetch('/api/resume', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ session_id: state.sessionId, names }),
+    });
+    const data = await r.json();
+    progressOverlay.classList.add('hidden');
+    state.paused  = false;
+    state.running = false;
+
+    if (!r.ok) throw new Error(data.error || 'Resume failed');
+    state.results = data.outputs;
+    showResults(data.outputs);
+  } catch(e) {
+    progressOverlay.classList.add('hidden');
+    state.paused  = false;
+    state.running = false;
+    btnRun.disabled = false;
+    showError(e.message);
+  }
+}
+
+// ── Split overlay ─────────────────────────────────────────────────────────────
+
+const GROUP_COLORS = ['#a2ff5a','#5ab4ff','#ff9a5a','#d45aff','#ff5a8c','#5affde','#ffde5a','#ff5a5a'];
+
+const splt = {
+  resumeMode:  false,
+  pages:       [],
+  groups:      [],
+  nextId:      1,
+  dragging:    null,       // {pages:[...], groupId}
+  selected:    new Set(),  // Set of page objects (by reference)
+  lastClicked: null,       // {page, groupId}
+};
+
+async function openSplit(stepId, resumeMode = false) {
+  splt.resumeMode  = resumeMode;
+  splt.dragging    = null;
+  splt.selected    = new Set();
+  splt.lastClicked = null;
+
+  $('split-overlay').classList.remove('hidden');
+  $('split-loading').classList.remove('hidden');
+  $('split-groups-container').innerHTML = '';
+
+  try {
+    const r    = await fetch(`/api/thumbnails/${state.sessionId}`);
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'Failed to load thumbnails');
+
+    splt.pages  = data.thumbnails;
+    splt.groups = [{ id: splt.nextId++, pages: [...splt.pages] }];
+
+    $('split-loading').classList.add('hidden');
+    renderSplitGroups();
+  } catch(e) {
+    $('split-loading').classList.add('hidden');
+    closeSplit();
+    showError('Could not load page previews: ' + e.message);
+  }
+}
+
+function closeSplit() {
+  $('split-overlay').classList.add('hidden');
+  splt.groups      = [];
+  splt.dragging    = null;
+  splt.selected    = new Set();
+  splt.lastClicked = null;
+}
+
+function addSplitGroup() {
+  splt.groups.push({ id: splt.nextId++, pages: [] });
+  renderSplitGroups();
+}
+
+function removeSplitGroup(groupId) {
+  const g = splt.groups.find(g => g.id === groupId);
+  if (!g) return;
+  if (splt.groups.length === 1) { showError('Need at least one group.'); return; }
+  // Move pages to first remaining group
+  const remaining = splt.groups.find(g2 => g2.id !== groupId);
+  remaining.pages.push(...g.pages);
+  splt.groups = splt.groups.filter(g2 => g2.id !== groupId);
+  renderSplitGroups();
+}
+
+function renderSplitGroups() {
+  const container = $('split-groups-container');
+  container.innerHTML = '';
+
+  splt.groups.forEach((group, gIdx) => {
+    const color   = GROUP_COLORS[gIdx % GROUP_COLORS.length];
+    const groupEl = document.createElement('div');
+    groupEl.className  = 'split-group';
+    groupEl.dataset.gid = group.id;
+
+    // Header
+    const hdr = document.createElement('div');
+    hdr.className = 'split-group-header';
+    hdr.innerHTML = `
+      <div class="split-group-dot" style="background:${color}"></div>
+      <div class="split-group-label">Group ${gIdx + 1}</div>
+      <div class="split-group-count">${group.pages.length} page${group.pages.length !== 1 ? 's' : ''}</div>
+      <button class="split-group-del" title="Remove group">✕</button>`;
+    hdr.querySelector('.split-group-del').addEventListener('click', () => removeSplitGroup(group.id));
+    groupEl.appendChild(hdr);
+
+    // Pages zone
+    const zone = document.createElement('div');
+    zone.className  = 'split-group-pages';
+    zone.dataset.gid = group.id;
+
+    if (group.pages.length === 0) {
+      const empty = document.createElement('div');
+      empty.className  = 'split-group-empty';
+      empty.textContent = 'Drop pages here';
+      zone.appendChild(empty);
+    }
+
+    group.pages.forEach((page, tIdx) => zone.appendChild(_makeSplitTile(page, group, gIdx, color)));
+
+    // Box-select within zone
+    zone.addEventListener('mousedown', e => startBoxSelect(e, (box, additive) => {
+      if (!additive) splt.selected.clear();
+      zone.querySelectorAll('.split-tile').forEach((el, i) => {
+        const r = el.getBoundingClientRect();
+        if (rectsOverlap(box, r)) splt.selected.add(group.pages[i]);
+      });
+      splt.lastClicked = splt.selected.size ? { page: group.pages[group.pages.length-1], groupId: group.id } : splt.lastClicked;
+      renderSplitGroups();
+    }));
+
+    // Zone drop (append to end when dropping on empty space)
+    zone.addEventListener('dragover', e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      groupEl.classList.add('drag-target');
+    });
+    zone.addEventListener('dragleave', e => {
+      if (!groupEl.contains(e.relatedTarget)) groupEl.classList.remove('drag-target');
+    });
+    zone.addEventListener('drop', e => {
+      e.preventDefault();
+      groupEl.classList.remove('drag-target');
+      if (!splt.dragging) return;
+      const { pages: draggedPages, groupId: fromId } = splt.dragging;
+      if (fromId === group.id && !e.target.closest('.split-tile')) return;
+      _moveSplitPages(draggedPages, group, null); // null = append
+    });
+
+    groupEl.appendChild(zone);
+    container.appendChild(groupEl);
+  });
+}
+
+function _moveSplitPages(pages, destGroup, beforePage) {
+  const pageSet = new Set(pages);
+  // Remove from all groups
+  for (const g of splt.groups) g.pages = g.pages.filter(p => !pageSet.has(p));
+  // Insert into dest group
+  if (beforePage) {
+    const idx = destGroup.pages.indexOf(beforePage);
+    if (idx === -1) destGroup.pages.push(...pages);
+    else destGroup.pages.splice(idx, 0, ...pages);
+  } else {
+    destGroup.pages.push(...pages);
+  }
+  splt.dragging = null;
+  renderSplitGroups();
+}
+
+function _makeSplitTile(page, group, gIdx, color) {
+  const tile = document.createElement('div');
+  tile.className  = 'split-tile' + (splt.selected.has(page) ? ' selected' : '');
+  tile.draggable  = true;
+  tile.style.borderColor = color + '55';
+
+  const badge = document.createElement('div');
+  badge.className  = 'split-tile-badge';
+  badge.textContent = `p.${page.page + 1}`;
+
+  let visual;
+  if (page.placeholder || !page.data) {
+    visual = document.createElement('div');
+    visual.className  = 'split-tile-placeholder';
+    visual.textContent = '📄';
+  } else {
+    visual = document.createElement('img');
+    visual.className = 'split-tile-img';
+    visual.src       = page.data;
+    visual.alt       = `p.${page.page + 1}`;
+    visual.draggable = false;
+  }
+
+  const label = document.createElement('div');
+  label.className  = 'split-tile-label';
+  const short = page.file_name.length > 14 ? page.file_name.slice(0,11)+'…' : page.file_name;
+  label.textContent = `${short} · p.${page.page + 1}`;
+
+  tile.appendChild(badge);
+  tile.appendChild(visual);
+  tile.appendChild(label);
+
+  // ── Click to select ──
+  tile.addEventListener('click', e => {
+    e.stopPropagation();
+    const pagesInGroup = group.pages;
+    if (e.shiftKey && splt.lastClicked && splt.lastClicked.groupId === group.id) {
+      const lo = pagesInGroup.indexOf(splt.lastClicked.page);
+      const hi = pagesInGroup.indexOf(page);
+      if (lo !== -1 && hi !== -1) {
+        if (!e.ctrlKey && !e.metaKey) splt.selected.clear();
+        const [a, b] = lo < hi ? [lo, hi] : [hi, lo];
+        for (let i = a; i <= b; i++) splt.selected.add(pagesInGroup[i]);
+      }
+    } else if (e.ctrlKey || e.metaKey) {
+      if (splt.selected.has(page)) splt.selected.delete(page);
+      else splt.selected.add(page);
+    } else {
+      splt.selected.clear();
+      splt.selected.add(page);
+    }
+    splt.lastClicked = { page, groupId: group.id };
+    renderSplitGroups();
+  });
+
+  // ── Drag ──
+  tile.addEventListener('dragstart', e => {
+    if (!splt.selected.has(page)) {
+      splt.selected.clear();
+      splt.selected.add(page);
+      splt.lastClicked = { page, groupId: group.id };
+    }
+    const dragPages = [...splt.selected];
+    splt.dragging = { pages: dragPages, groupId: group.id };
+    const ghost = _dragGhost(dragPages.length);
+    e.dataTransfer.setDragImage(ghost, 40, 14);
+    setTimeout(() => tile.classList.add('dragging'), 0);
+    e.dataTransfer.effectAllowed = 'move';
+  });
+  tile.addEventListener('dragend', () => {
+    document.querySelectorAll('.split-tile').forEach(t => { t.classList.remove('dragging'); t.classList.remove('drag-before'); });
+    document.querySelectorAll('.split-group').forEach(g => g.classList.remove('drag-target'));
+    splt.dragging = null;
+  });
+  // Drop before this tile
+  tile.addEventListener('dragover', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    e.dataTransfer.dropEffect = 'move';
+    document.querySelectorAll('.split-tile').forEach(t => t.classList.remove('drag-before'));
+    if (!splt.dragging?.pages.includes(page)) tile.classList.add('drag-before');
+    tile.closest('.split-group')?.classList.add('drag-target');
+  });
+  tile.addEventListener('dragleave', () => tile.classList.remove('drag-before'));
+  tile.addEventListener('drop', e => {
+    e.preventDefault();
+    e.stopPropagation();
+    tile.classList.remove('drag-before');
+    if (!splt.dragging || splt.dragging.pages.includes(page)) return;
+    _moveSplitPages(splt.dragging.pages, group, page);
+  });
+
+  return tile;
+}
+
+async function applySplit() {
+  // groups param: array of arrays of global_index values
+  const groups = splt.groups
+    .filter(g => g.pages.length > 0)
+    .map(g => g.pages.map(p => p.global_index));
+
+  if (groups.length === 0) { showError('Add at least one page to a group.'); return; }
+
+  closeSplit();
+  $('progress-title').textContent = 'Finishing up…';
+  $('progress-paused-box-split').classList.add('hidden');
+
+  try {
+    const r    = await fetch('/api/resume', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ session_id: state.sessionId, groups }),
+    });
+    const data = await r.json();
+    progressOverlay.classList.add('hidden');
+    state.paused  = false;
+    state.running = false;
+
+    if (!r.ok) throw new Error(data.error || 'Resume failed');
+    state.results = data.outputs;
+    showResults(data.outputs);
+  } catch(e) {
+    progressOverlay.classList.add('hidden');
+    state.paused  = false;
+    state.running = false;
+    btnRun.disabled = false;
+    showError(e.message);
+  }
+}
+
+// ── Shared rubber-band selection utility ─────────────────────────────────────
+let _boxSel = { active: false, el: null, start: null };
+
+function startBoxSelect(e, onComplete) {
+  if (e.button !== 0) return;
+  if (e.target.closest('.page-tile, .split-tile')) return;
+  e.preventDefault();
+  _boxSel.start = { x: e.clientX, y: e.clientY };
+  _boxSel.el = document.createElement('div');
+  _boxSel.el.className = 'selection-box';
+  Object.assign(_boxSel.el.style, { left: e.clientX+'px', top: e.clientY+'px', width:'0', height:'0' });
+  document.body.appendChild(_boxSel.el);
+  _boxSel.active = true;
+
+  const onMove = ev => {
+    const x1 = Math.min(_boxSel.start.x, ev.clientX), x2 = Math.max(_boxSel.start.x, ev.clientX);
+    const y1 = Math.min(_boxSel.start.y, ev.clientY), y2 = Math.max(_boxSel.start.y, ev.clientY);
+    Object.assign(_boxSel.el.style, { left:x1+'px', top:y1+'px', width:(x2-x1)+'px', height:(y2-y1)+'px' });
+  };
+  const onUp = ev => {
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+    if (_boxSel.el) { _boxSel.el.remove(); _boxSel.el = null; }
+    _boxSel.active = false;
+    const box = {
+      left:   Math.min(_boxSel.start.x, ev.clientX),
+      right:  Math.max(_boxSel.start.x, ev.clientX),
+      top:    Math.min(_boxSel.start.y, ev.clientY),
+      bottom: Math.max(_boxSel.start.y, ev.clientY),
+    };
+    _boxSel.start = null;
+    if (box.right - box.left < 4 && box.bottom - box.top < 4) return; // tiny click, ignore
+    onComplete(box, ev.shiftKey);
+  };
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+}
+
+function rectsOverlap(a, b) {
+  return a.left < b.right && a.right > b.left && a.top < b.bottom && a.bottom > b.top;
+}
+
+function _dragGhost(count) {
+  const el = document.createElement('div');
+  el.textContent = count > 1 ? `${count} pages` : '1 page';
+  Object.assign(el.style, {
+    position:'fixed', top:'-200px', left:'-200px',
+    background:'var(--accent)', color:'#000', padding:'4px 10px',
+    borderRadius:'6px', fontFamily:'monospace', fontSize:'12px', fontWeight:'700',
+  });
+  document.body.appendChild(el);
+  setTimeout(() => document.body.removeChild(el), 0);
+  return el;
+}
+
+// ── Organize page grid ────────────────────────────────────────────────────────
+function renderPageGrid() {
+  const grid = $('page-grid');
+  grid.innerHTML = '';
+
+  // Box-select on the grid background
+  grid.onmousedown = e => startBoxSelect(e, (box, additive) => {
+    const indices = [];
+    grid.querySelectorAll('.page-tile').forEach((el, i) => {
+      const r = el.getBoundingClientRect();
+      if (rectsOverlap(box, r)) indices.push(i);
+    });
+    if (!additive) org.selected.clear();
+    indices.forEach(i => org.selected.add(i));
+    org.lastClicked = indices[indices.length - 1] ?? org.lastClicked;
+    renderPageGrid();
+  });
+
+  org.tiles.forEach((tile, displayIdx) => {
+    const div = document.createElement('div');
+    div.className = 'page-tile' + (org.selected.has(displayIdx) ? ' selected' : '');
+    div.draggable  = true;
+    div.dataset.idx = displayIdx;
+
+    const badge = document.createElement('div');
+    badge.className = 'page-tile-badge';
+    badge.textContent = displayIdx + 1;
+
+    const delBtn = document.createElement('button');
+    delBtn.className = 'page-tile-del';
+    delBtn.title = 'Remove this page';
+    delBtn.textContent = '✕';
+    delBtn.addEventListener('click', e => {
+      e.stopPropagation();
+      const toRemove = org.selected.has(displayIdx) && org.selected.size > 1
+        ? [...org.selected].sort((a,b) => b-a)  // remove highest indices first
+        : [displayIdx];
+      toRemove.forEach(i => org.tiles.splice(i, 1));
+      org.selected.clear();
+      org.lastClicked = null;
+      renderPageGrid();
+    });
+
+    let visual;
+    if (tile.placeholder || !tile.data) {
+      visual = document.createElement('div');
+      visual.className = 'page-tile-placeholder';
+      visual.textContent = '📄';
+    } else {
+      visual = document.createElement('img');
+      visual.className = 'page-tile-img';
+      visual.src   = tile.data;
+      visual.alt   = `${tile.file_name} p.${tile.page + 1}`;
+      visual.draggable = false;
+    }
+
+    const label = document.createElement('div');
+    label.className = 'page-tile-label';
+    const shortName = tile.file_name.length > 18 ? tile.file_name.slice(0,15)+'…' : tile.file_name;
+    label.textContent = `${shortName} · p.${tile.page + 1}`;
+
+    div.appendChild(badge);
+    div.appendChild(delBtn);
+    div.appendChild(visual);
+    div.appendChild(label);
+
+    // ── Click to select ──
+    div.addEventListener('click', e => {
+      e.stopPropagation();
+      if (e.shiftKey && org.lastClicked !== null) {
+        const lo = Math.min(org.lastClicked, displayIdx);
+        const hi = Math.max(org.lastClicked, displayIdx);
+        if (!e.ctrlKey && !e.metaKey) org.selected.clear();
+        for (let i = lo; i <= hi; i++) org.selected.add(i);
+      } else if (e.ctrlKey || e.metaKey) {
+        if (org.selected.has(displayIdx)) org.selected.delete(displayIdx);
+        else org.selected.add(displayIdx);
+      } else {
+        org.selected.clear();
+        org.selected.add(displayIdx);
+      }
+      org.lastClicked = displayIdx;
+      renderPageGrid();
+    });
+
+    // ── Drag ──
+    div.addEventListener('dragstart', e => {
+      // If dragging a selected tile, carry all selected; otherwise just this one
+      if (!org.selected.has(displayIdx)) {
+        org.selected.clear();
+        org.selected.add(displayIdx);
+        org.lastClicked = displayIdx;
+      }
+      org.dragging = [...org.selected].sort((a,b) => a-b);
+      const ghost = _dragGhost(org.dragging.length);
+      e.dataTransfer.setDragImage(ghost, 40, 14);
+      setTimeout(() => div.classList.add('dragging'), 0);
+      e.dataTransfer.effectAllowed = 'move';
+    });
+    div.addEventListener('dragend', () => {
+      grid.querySelectorAll('.page-tile').forEach(t => { t.classList.remove('dragging'); t.classList.remove('drag-over'); });
+      org.dragging = null;
+    });
+    div.addEventListener('dragover', e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      grid.querySelectorAll('.page-tile').forEach(t => t.classList.remove('drag-over'));
+      if (!org.dragging?.includes(displayIdx)) div.classList.add('drag-over');
+    });
+    div.addEventListener('dragleave', () => div.classList.remove('drag-over'));
+    div.addEventListener('drop', e => {
+      e.preventDefault();
+      div.classList.remove('drag-over');
+      if (!org.dragging || org.dragging.includes(displayIdx)) return;
+      // Snapshot dragged tiles in order
+      const draggedTiles = org.dragging.map(i => org.tiles[i]);
+      const movedSet     = new Set(draggedTiles);
+      const dropTarget   = org.tiles[displayIdx];
+      const remaining    = org.tiles.filter(t => !movedSet.has(t));
+      const insertAt     = remaining.indexOf(dropTarget);
+      remaining.splice(insertAt, 0, ...draggedTiles);
+      org.tiles = remaining;
+      // Re-map selection to new indices
+      org.selected.clear();
+      draggedTiles.forEach(t => { const i = org.tiles.indexOf(t); if (i !== -1) org.selected.add(i); });
+      org.dragging = null;
+      renderPageGrid();
+    });
+
+    grid.appendChild(div);
+  });
+}
+
+// ── Workflow save/load ─────────────────────────────────────────────────────────
+function saveWorkflow() {
+  if (state.steps.length === 0) { showError('Add some steps first.'); return; }
+  const wf = { version: 1, steps: state.steps.map(s => ({ tool: s.toolId, params: s.params })) };
+  const blob = new Blob([JSON.stringify(wf, null, 2)], { type: 'application/json' });
+  const url  = URL.createObjectURL(blob);
+  const a    = Object.assign(document.createElement('a'), { href: url, download: 'pdfer-workflow.json' });
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+async function loadWorkflow(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+  try {
+    const text = await file.text();
+    const wf   = JSON.parse(text);
+    if (!wf.steps || !Array.isArray(wf.steps)) throw new Error('Invalid workflow file');
+    state.steps = [];
+    for (const s of wf.steps) {
+      const tool = getTool(s.tool);
+      if (!tool) { showError(`Unknown tool in workflow: "${s.tool}"`); continue; }
+      const params = {};
+      for (const p of (tool.params || [])) params[p.id] = p.default !== undefined ? p.default : '';
+      Object.assign(params, s.params || {});
+      state.steps.push({ id: `s${++stepCounter}`, toolId: s.tool, params, open: false });
+    }
+    renderPipelineSteps();
+    updateRunButton();
+  } catch(err) {
+    showError('Could not load workflow: ' + err.message);
+  } finally {
+    e.target.value = '';
+  }
+}
+
+// ── Start over ─────────────────────────────────────────────────────────────────
+async function startOver() {
+  if (state.sessionId) {
+    fetch(`/api/session/${state.sessionId}`, { method: 'DELETE' }).catch(() => {});
+  }
+  state.sessionId = null;
+  state.files     = [];
+  state.results   = null;
+  state.running   = false;
+  state.paused    = false;
+  state.steps     = [];
+  _currentWorkflowId   = null;
+  _currentWorkflowName = '';
+
+  filesList.innerHTML      = '';
+  pipelineSteps.innerHTML  = '';
+  progressSteps.innerHTML  = '';
+
+  secResults.classList.add('hidden');
+  secWorkflow.classList.add('hidden');
+  secUpload.classList.remove('hidden');
+  updateRunButton();
+}
+
+// ── Utils ──────────────────────────────────────────────────────────────────────
+function escHtml(str) {
+  return String(str)
+    .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+    .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+// ── Sign PDF overlay ──────────────────────────────────────────────────────────
+
+const signState = {
+  resumeMode: false,
+  thumbnails: [],       // from /api/thumbnails (low-res, for sidebar)
+  hiRes: {},            // globalIdx → data URL (high-res, loaded on demand)
+  pageIdx: 0,
+  signatures: [],       // [{id, pageIdx, fx,fy,fw,fh, type, data, color}]
+  dragging: null,       // {id, startX, startY, origFx, origFy}
+  resizing: null,       // {id, startX, startY, origFx, origFy, origFw, origFh}
+  drawMode: 'draw',
+  isDrawing: false,
+  lastPt: null,
+  canvasEmpty: true,
+  ctx: null,
+};
+
+// ── Sign overlay: open / close ────────────────────────────────────────────────
+let _sigIdCtr = 0;
+
+async function openSign(stepId, resumeMode = false) {
+  signState.resumeMode = resumeMode;
+  signState.signatures = [];
+  signState.pageIdx    = 0;
+  signState.hiRes      = {};
+  signState.dragging   = null;
+  signState.resizing   = null;
+
+  $('sign-overlay').classList.remove('hidden');
+  $('sign-loading').classList.remove('hidden');
+  $('sign-sidebar').innerHTML   = '';
+  $('sign-page-wrap').innerHTML = '<img id="sign-page-img" src="" alt="">';
+
+  try {
+    const r    = await fetch(`/api/thumbnails/${state.sessionId}`);
+    const data = await r.json();
+    signState.thumbnails = (data.thumbnails || []).filter(t => !t.placeholder);
+  } catch(e) { signState.thumbnails = []; }
+
+  $('sign-loading').classList.add('hidden');
+  if (!signState.thumbnails.length) return;
+
+  _renderSignSidebar();
+  await _selectSignPage(0);
+
+  // Global mouse events for drag/resize
+  document.addEventListener('mousemove', _signGlobalMove);
+  document.addEventListener('mouseup',   _signGlobalUp);
+}
+
+function closeSign() {
+  $('sign-overlay').classList.add('hidden');
+  sdpClose();
+  document.removeEventListener('mousemove', _signGlobalMove);
+  document.removeEventListener('mouseup',   _signGlobalUp);
+}
+
+// ── Sidebar ───────────────────────────────────────────────────────────────────
+function _renderSignSidebar() {
+  const sb = $('sign-sidebar');
+  sb.innerHTML = '';
+  signState.thumbnails.forEach((t, i) => {
+    const cnt = signState.signatures.filter(s => s.pageIdx === i).length;
+    const el  = document.createElement('div');
+    el.className = 'sign-sth' + (i === signState.pageIdx ? ' active' : '');
+    el.innerHTML = `
+      <img src="${t.data}" alt="p${t.page+1}">
+      <div class="sign-sth-foot">
+        <span class="sign-sth-num">p${t.page + 1}</span>
+        ${cnt ? `<span class="sign-sth-cnt">${cnt} sig${cnt>1?'s':''}</span>` : ''}
+      </div>`;
+    el.onclick = () => _selectSignPage(i);
+    sb.appendChild(el);
+  });
+}
+
+// ── Page selection ────────────────────────────────────────────────────────────
+async function _selectSignPage(idx) {
+  signState.pageIdx = idx;
+
+  // Sidebar active state
+  [...$('sign-sidebar').children].forEach((el, i) =>
+    el.classList.toggle('active', i === idx));
+
+  $('sign-hdr-page').textContent = `Page ${idx + 1} of ${signState.thumbnails.length}`;
+
+  // Load high-res preview (cached)
+  const img = document.getElementById('sign-page-img');
+  if (!img) return;
+
+  if (signState.hiRes[idx]) {
+    img.src = signState.hiRes[idx];
+  } else {
+    // Show low-res immediately, upgrade in background
+    const t = signState.thumbnails[idx];
+    if (t) img.src = t.data;
+
+    const globalIdx = t ? t.global_index : idx;
+    try {
+      const r = await fetch(`/api/page_preview/${state.sessionId}/${globalIdx}?scale=1.2`);
+      const d = await r.json();
+      if (d.data) {
+        signState.hiRes[idx] = d.data;
+        if (signState.pageIdx === idx) img.src = d.data;
+      }
+    } catch(e) {}
+  }
+
+  _renderSigsOnPage();
+}
+
+// ── Render signature overlays ─────────────────────────────────────────────────
+function _renderSigsOnPage() {
+  const wrap = $('sign-page-wrap');
+  // Remove existing overlays
+  [...wrap.querySelectorAll('.sig-ov')].forEach(el => el.remove());
+
+  const img = document.getElementById('sign-page-img');
+  if (!img || !img.naturalWidth) {
+    img && img.addEventListener('load', _renderSigsOnPage, { once: true });
+    return;
+  }
+
+  const iw = img.offsetWidth, ih = img.offsetHeight;
+
+  signState.signatures
+    .filter(s => s.pageIdx === signState.pageIdx)
+    .forEach(sig => {
+      const el = document.createElement('div');
+      el.className = 'sig-ov';
+      el.dataset.id = sig.id;
+      el.style.cssText = `left:${sig.fx*100}%;top:${sig.fy*100}%;width:${sig.fw*100}%;height:${sig.fh*100}%`;
+
+      if (sig.type === 'drawn') {
+        el.innerHTML = `<img src="${sig.data}" draggable="false">`;
+      } else {
+        const fs = Math.max(8, Math.min(ih * sig.fh * 0.55, 48));
+        el.innerHTML = `<div class="sig-ov-text" style="font-size:${fs}px;color:${sig.color}">${escHtml(sig.data)}</div>`;
+      }
+
+      el.innerHTML += `
+        <button class="sig-ov-rm" title="Remove">✕</button>
+        <div class="sig-ov-rz"></div>`;
+
+      // Remove button
+      el.querySelector('.sig-ov-rm').addEventListener('mousedown', e => {
+        e.stopPropagation();
+        signState.signatures = signState.signatures.filter(s => s.id !== sig.id);
+        el.remove();
+        _renderSignSidebar();
+      });
+
+      // Resize handle
+      el.querySelector('.sig-ov-rz').addEventListener('mousedown', e => {
+        e.stopPropagation(); e.preventDefault();
+        const wr = wrap.getBoundingClientRect();
+        const iwr = img.getBoundingClientRect();
+        signState.resizing = {
+          id: sig.id,
+          startX: e.clientX, startY: e.clientY,
+          origFx: sig.fx, origFy: sig.fy, origFw: sig.fw, origFh: sig.fh,
+          iw: iwr.width, ih: iwr.height,
+        };
+      });
+
+      // Drag (whole element, except remove/resize)
+      el.addEventListener('mousedown', e => {
+        if (e.target.classList.contains('sig-ov-rm') ||
+            e.target.classList.contains('sig-ov-rz')) return;
+        e.preventDefault();
+        const wr  = wrap.getBoundingClientRect();
+        const iwr = document.getElementById('sign-page-img').getBoundingClientRect();
+        signState.dragging = {
+          id: sig.id,
+          startX: e.clientX, startY: e.clientY,
+          origFx: sig.fx, origFy: sig.fy,
+          iw: iwr.width, ih: iwr.height,
+        };
+        el.classList.add('is-dragging');
+      });
+
+      wrap.appendChild(el);
+    });
+}
+
+function _signGlobalMove(e) {
+  if (signState.dragging) {
+    const d   = signState.dragging;
+    const dx  = (e.clientX - d.startX) / d.iw;
+    const dy  = (e.clientY - d.startY) / d.ih;
+    const sig = signState.signatures.find(s => s.id === d.id);
+    if (!sig) return;
+    sig.fx = Math.max(0, Math.min(1 - sig.fw, d.origFx + dx));
+    sig.fy = Math.max(0, Math.min(1 - sig.fh, d.origFy + dy));
+    const el = document.querySelector(`.sig-ov[data-id="${d.id}"]`);
+    if (el) { el.style.left = sig.fx*100+'%'; el.style.top = sig.fy*100+'%'; }
+  }
+  if (signState.resizing) {
+    const r   = signState.resizing;
+    const dx  = (e.clientX - r.startX) / r.iw;
+    const dy  = (e.clientY - r.startY) / r.ih;
+    const sig = signState.signatures.find(s => s.id === r.id);
+    if (!sig) return;
+    sig.fw = Math.max(0.03, Math.min(1 - sig.fx, r.origFw + dx));
+    sig.fh = Math.max(0.02, Math.min(1 - sig.fy, r.origFh + dy));
+    const el = document.querySelector(`.sig-ov[data-id="${r.id}"]`);
+    if (el) {
+      el.style.width  = sig.fw*100+'%';
+      el.style.height = sig.fh*100+'%';
+      // Live-scale text overlays as the box resizes
+      if (sig.type === 'text') {
+        const imgEl = document.getElementById('sign-page-img');
+        const pxH   = (imgEl ? imgEl.offsetHeight : r.ih) * sig.fh;
+        const fs    = Math.max(8, Math.min(pxH * 0.55, 96));
+        const textEl = el.querySelector('.sig-ov-text');
+        if (textEl) textEl.style.fontSize = fs + 'px';
+      }
+    }
+  }
+}
+
+function _signGlobalUp() {
+  if (signState.dragging) {
+    const el = document.querySelector(`.sig-ov[data-id="${signState.dragging.id}"]`);
+    if (el) el.classList.remove('is-dragging');
+    signState.dragging = null;
+  }
+  signState.resizing = null;
+}
+
+// ── Draw panel ────────────────────────────────────────────────────────────────
+function sdpOpen() {
+  const panel = $('sign-draw-panel');
+  panel.classList.add('open');
+  // Size canvas to its CSS dimensions
+  const canvas = $('sign-draw-canvas');
+  canvas.width  = canvas.offsetWidth  || 600;
+  canvas.height = canvas.offsetHeight || 140;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  ctx.strokeStyle = $('sdp-color').value;
+  ctx.lineWidth   = 2.2;
+  ctx.lineCap     = 'round';
+  ctx.lineJoin    = 'round';
+  signState.ctx        = ctx;
+  signState.canvasEmpty = true;
+  $('sdp-hint').style.opacity = '1';
+
+  canvas.onmousedown  = sdpCanvasDown;
+  canvas.onmousemove  = sdpCanvasMove;
+  canvas.onmouseup    = sdpCanvasUp;
+  canvas.onmouseleave = sdpCanvasUp;
+}
+function sdpClose() {
+  $('sign-draw-panel').classList.remove('open');
+  const c = $('sign-draw-canvas');
+  c.onmousedown = c.onmousemove = c.onmouseup = c.onmouseleave = null;
+}
+function sdpSwitchTab(mode) {
+  signState.drawMode = mode;
+  $('sdp-tab-draw').classList.toggle('active', mode === 'draw');
+  $('sdp-tab-type').classList.toggle('active', mode === 'type');
+  $('sdp-canvas-mode').classList.toggle('hidden', mode !== 'draw');
+  $('sdp-type-mode').classList.toggle('hidden', mode !== 'type');
+}
+function sdpCanvasDown(e) {
+  const r = e.target.getBoundingClientRect();
+  const x = (e.clientX - r.left) * (e.target.width / r.width);
+  const y = (e.clientY - r.top)  * (e.target.height / r.height);
+  signState.isDrawing = true;
+  signState.lastPt    = { x, y };
+  signState.ctx.strokeStyle = $('sdp-color').value;
+  signState.ctx.beginPath();
+  signState.ctx.moveTo(x, y);
+  $('sdp-hint').style.opacity = '0';
+  e.preventDefault();
+}
+function sdpCanvasMove(e) {
+  if (!signState.isDrawing) return;
+  const r = e.target.getBoundingClientRect();
+  const x = (e.clientX - r.left) * (e.target.width / r.width);
+  const y = (e.clientY - r.top)  * (e.target.height / r.height);
+  signState.ctx.lineTo(x, y);
+  signState.ctx.stroke();
+  signState.ctx.beginPath();
+  signState.ctx.moveTo(x, y);
+  signState.canvasEmpty = false;
+}
+function sdpCanvasUp() {
+  signState.isDrawing = false;
+  signState.lastPt    = null;
+}
+function sdpTypePreview() {
+  // live feedback already from CSS
+}
+
+// ── Crop drawn canvas to its actual content bounding box ─────────────────────
+function _cropCanvasToContent(canvas) {
+  const ctx    = canvas.getContext('2d');
+  const idata  = ctx.getImageData(0, 0, canvas.width, canvas.height);
+  const px     = idata.data;
+  let minX = canvas.width, maxX = 0, minY = canvas.height, maxY = 0, found = false;
+
+  for (let y = 0; y < canvas.height; y++) {
+    for (let x = 0; x < canvas.width; x++) {
+      // Canvas is transparent by default; any painted pixel has alpha > 0
+      const a = px[(y * canvas.width + x) * 4 + 3];
+      if (a > 8) {
+        if (x < minX) minX = x; if (x > maxX) maxX = x;
+        if (y < minY) minY = y; if (y > maxY) maxY = y;
+        found = true;
+      }
+    }
+  }
+  if (!found) return null;
+
+  const pad  = 10;
+  minX = Math.max(0, minX - pad);   minY = Math.max(0, minY - pad);
+  maxX = Math.min(canvas.width - 1, maxX + pad);
+  maxY = Math.min(canvas.height - 1, maxY + pad);
+  const cw = maxX - minX + 1, ch = maxY - minY + 1;
+
+  const out = document.createElement('canvas');
+  out.width = cw; out.height = ch;
+  out.getContext('2d').drawImage(canvas, minX, minY, cw, ch, 0, 0, cw, ch);
+  return { dataUrl: out.toDataURL('image/png'), cw, ch };
+}
+
+function sdpPlace() {
+  const color = $('sdp-color').value;
+  let sigData, sigType, fw = 0.30, fh = 0.09;
+
+  if (signState.drawMode === 'type') {
+    const txt = $('sign-type-text').value.trim();
+    if (!txt) { showError('Please type a signature first.'); return; }
+    sigType = 'text';
+    sigData = txt;
+    // Text height is roughly 1 line; keep fixed fh, adjust fw to be wider
+    fw = 0.30; fh = 0.065;
+  } else {
+    if (signState.canvasEmpty) { showError('Please draw a signature first.'); return; }
+    const cropped = _cropCanvasToContent($('sign-draw-canvas'));
+    if (!cropped) { showError('Please draw a signature first.'); return; }
+    sigType = 'drawn';
+    sigData = cropped.dataUrl;
+    // Size the overlay to match the cropped aspect ratio
+    // Target width ~28% of page; height derived from aspect ratio
+    fw = 0.28;
+    fh = fw * (cropped.ch / cropped.cw);
+    // Clamp to reasonable range
+    fh = Math.max(0.04, Math.min(fh, 0.25));
+  }
+
+  _placeSig({ type: sigType, data: sigData, color, fw, fh });
+}
+
+// Shared helper — creates a sig and adds it at default bottom-right position
+function _placeSig({ type, data, color, fw = 0.28, fh = 0.08 }) {
+  const sig = {
+    id:      ++_sigIdCtr,
+    pageIdx: signState.pageIdx,
+    fx: Math.max(0, 0.98 - fw),   // flush right with small margin
+    fy: Math.max(0, 0.95 - fh),   // flush bottom with small margin
+    fw, fh,
+    type, data, color,
+  };
+  signState.signatures.push(sig);
+  sdpClose();
+  _renderSigsOnPage();
+  _renderSignSidebar();
+}
+
+// ── Quick-insert buttons ──────────────────────────────────────────────────────
+function _getPickedDate() {
+  const val = $('sign-date-input')?.value;  // 'YYYY-MM-DD' or ''
+  if (val) {
+    // Parse as local date (avoid UTC shift)
+    const [y, m, day] = val.split('-').map(Number);
+    return new Date(y, m - 1, day);
+  }
+  return new Date();
+}
+
+function _fmtDate(fmt) {
+  const d   = _getPickedDate();
+  const pad = n => String(n).padStart(2, '0');
+  switch (fmt) {
+    case 'long':   return d.toLocaleDateString('en-US', { year: 'numeric', month: 'long',  day: 'numeric' });
+    case 'medium': return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+    case 'us':     return `${pad(d.getMonth()+1)}/${pad(d.getDate())}/${d.getFullYear()}`;
+    case 'eu':     return `${pad(d.getDate())}/${pad(d.getMonth()+1)}/${d.getFullYear()}`;
+    case 'iso':    return `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+    case 'short':  return `${d.getMonth()+1}/${d.getDate()}/${String(d.getFullYear()).slice(2)}`;
+    default:       return d.toLocaleDateString();
+  }
+}
+
+function _updateDatePreviews() {
+  ['long','medium','us','eu','iso','short'].forEach(fmt => {
+    const btn = document.querySelector(`[data-datefmt="${fmt}"]`);
+    if (btn) btn.textContent = _fmtDate(fmt);
+  });
+}
+
+function placeDateFmt(fmt) {
+  $('sign-date-dd').classList.add('hidden');
+  const color = $('sdp-color').value || '#1a1a2e';
+  _placeSig({ type: 'text', data: _fmtDate(fmt), color, fw: 0.22, fh: 0.052 });
+}
+
+// Close date dropdown when clicking outside
+document.addEventListener('click', e => {
+  if (!e.target.closest('.sign-date-wrap')) {
+    $('sign-date-dd')?.classList.add('hidden');
+  }
+});
+
+function addText() {
+  // Open draw panel with Type tab pre-selected
+  sdpSwitchTab('type');
+  $('sign-type-text').value = '';
+  sdpOpen();
+  // Switch mode after open so canvas init doesn't override
+  sdpSwitchTab('type');
+}
+
+// ── Apply all signatures ──────────────────────────────────────────────────────
+async function applySign() {
+  if (!signState.signatures.length) {
+    showError('Add at least one signature before applying.'); return;
+  }
+
+  closeSign();
+  $('progress-title').textContent = 'Finishing up…';
+
+  // Compress drawn signature data URLs for the payload
+  const payload = signState.signatures.map(s => ({
+    page:  s.pageIdx,
+    fx:    s.fx, fy: s.fy, fw: s.fw, fh: s.fh,
+    type:  s.type,
+    data:  s.data,
+    color: s.color,
+  }));
+
+  try {
+    const r = await authFetch('/api/resume', {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ session_id: state.sessionId, signatures: payload }),
+    });
+    const data = await r.json();
+    progressOverlay.classList.add('hidden');
+    state.paused  = false;
+    state.running = false;
+    if (!r.ok) throw new Error(data.error || 'Resume failed');
+    state.results = data.outputs;
+    showResults(data.outputs);
+  } catch(e) {
+    progressOverlay.classList.add('hidden');
+    state.paused  = false;
+    state.running = false;
+    btnRun.disabled = false;
+    showError(e.message);
+  }
+}
+
+// ── Wire up buttons ───────────────────────────────────────────────────────────
+$('btn-sign-apply').addEventListener('click', applySign);
+$('btn-sign-close').addEventListener('click', closeSign);
+$('btn-sign-add').addEventListener('click', () => { sdpSwitchTab('draw'); sdpOpen(); });
+$('btn-sign-date').addEventListener('click', e => {
+  e.stopPropagation();
+  const dd = $('sign-date-dd');
+  const opening = dd.classList.contains('hidden');
+  dd.classList.toggle('hidden');
+  if (opening) {
+    // Default to today if not set
+    const inp = $('sign-date-input');
+    if (!inp.value) {
+      const now = new Date();
+      const pad = n => String(n).padStart(2, '0');
+      inp.value = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+    }
+    _updateDatePreviews();
+  }
+});
+$('btn-sign-text').addEventListener('click', addText);
+$('btn-sdp-close').addEventListener('click', sdpClose);
+$('btn-sdp-place').addEventListener('click', sdpPlace);
+$('btn-sdp-clear').addEventListener('click', () => {
+  const c = $('sign-draw-canvas');
+  const ctx = signState.ctx;
+  if (ctx) ctx.clearRect(0, 0, c.width, c.height);
+  signState.canvasEmpty = true;
+  $('sdp-hint').style.opacity = '1';
+});
+
+// ── Auth & Account system ──────────────────────────────────────────────────────
+
+const auth = {
+  token:    null,
+  userId:   null,
+  username: null,
+};
+
+// Load token from localStorage on startup
+function authLoad() {
+  const token = localStorage.getItem('pdfer_token');
+  if (token) {
+    auth.token = token;
+    // Verify token with server
+    authFetch('/api/auth/me').then(r => {
+      if (r.ok) {
+        return r.json().then(data => {
+          auth.userId   = data.user_id;
+          auth.username = data.username;
+          authUpdateUI();
+        });
+      } else {
+        // Token invalid/expired
+        authClear();
+      }
+    }).catch(() => authClear());
+  }
+}
+
+function authClear() {
+  auth.token    = null;
+  auth.userId   = null;
+  auth.username = null;
+  localStorage.removeItem('pdfer_token');
+  authUpdateUI();
+}
+
+function authUpdateUI() {
+  const label    = $('acct-label');
+  const dropdown = $('acct-dropdown');
+
+  if (auth.username) {
+    label.innerHTML = `<span class="acct-name">${escHtml(auth.username)}</span>`;
+  } else {
+    label.textContent = 'Sign in';
+  }
+  // Always close dropdown when state changes
+  dropdown.classList.add('hidden');
+  updateCloudSaveButton();
+}
+
+function updateCloudSaveButton() {
+  const btn = $('btn-cloud-save');
+  if (!btn) return;
+  const loggedIn = !!auth.token;
+  const hasSteps = state.steps.length > 0;
+  // Only truly disable when logged in but no steps — clicking while logged out
+  // should open the auth modal (handled by openCloudSavePopover), so keep clickable
+  btn.disabled = loggedIn && !hasSteps;
+  if (!loggedIn) {
+    btn.title = 'Sign in to save workflows';
+  } else if (!hasSteps) {
+    btn.title = 'Add steps first';
+  } else {
+    btn.title = 'Save workflow to your account';
+  }
+}
+
+// Helper: fetch with auth header
+function authFetch(url, opts = {}) {
+  opts.headers = opts.headers || {};
+  if (auth.token) {
+    opts.headers['Authorization'] = `Bearer ${auth.token}`;
+  }
+  return fetch(url, opts);
+}
+
+// ── Auth modal ─────────────────────────────────────────────────────────────────
+
+let _authMode = 'login'; // 'login' | 'register'
+
+function openAuthModal(tab) {
+  _authMode = tab || 'login';
+  authSwitchTab(_authMode);
+  $('auth-username').value = '';
+  $('auth-password').value = '';
+  $('auth-error').textContent = '';
+  $('auth-error').classList.remove('visible');
+  $('auth-modal').classList.remove('hidden');
+  setTimeout(() => $('auth-username').focus(), 80);
+}
+
+function closeAuthModal() {
+  $('auth-modal').classList.add('hidden');
+}
+
+function authSwitchTab(tab) {
+  _authMode = tab;
+  $('auth-tab-login').classList.toggle('active', tab === 'login');
+  $('auth-tab-register').classList.toggle('active', tab === 'register');
+  $('auth-submit-btn').textContent = tab === 'login' ? 'Sign in' : 'Create account';
+  $('auth-password').autocomplete  = tab === 'login' ? 'current-password' : 'new-password';
+  $('auth-error').textContent = '';
+  $('auth-error').classList.remove('visible');
+}
+
+async function authSubmit() {
+  const username = $('auth-username').value.trim();
+  const password = $('auth-password').value;
+  const errEl    = $('auth-error');
+
+  if (!username || !password) {
+    errEl.textContent = 'Please fill in all fields.';
+    errEl.classList.add('visible');
+    return;
+  }
+
+  const btn = $('auth-submit-btn');
+  btn.disabled = true;
+  btn.textContent = _authMode === 'login' ? 'Signing in…' : 'Creating account…';
+  errEl.classList.remove('visible');
+
+  try {
+    const endpoint = _authMode === 'login' ? '/api/auth/login' : '/api/auth/register';
+    const r = await fetch(endpoint, {
+      method:  'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body:    JSON.stringify({ username, password }),
+    });
+    const data = await r.json();
+
+    if (!r.ok) {
+      errEl.textContent = data.error || 'Something went wrong.';
+      errEl.classList.add('visible');
+      return;
+    }
+
+    // Success
+    auth.token    = data.token;
+    auth.userId   = data.user_id;
+    auth.username = data.username;
+    localStorage.setItem('pdfer_token', data.token);
+    closeAuthModal();
+    authUpdateUI();
+  } catch (e) {
+    errEl.textContent = 'Network error. Try again.';
+    errEl.classList.add('visible');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = _authMode === 'login' ? 'Sign in' : 'Create account';
+  }
+}
+
+async function signOut() {
+  if (auth.token) {
+    await authFetch('/api/auth/logout', { method: 'POST' }).catch(() => {});
+  }
+  authClear();
+  $('acct-dropdown').classList.add('hidden');
+}
+
+// ── Account dropdown ───────────────────────────────────────────────────────────
+
+function toggleAcctDropdown() {
+  if (!auth.token) {
+    openAuthModal('login');
+    return;
+  }
+  const dd = $('acct-dropdown');
+  dd.classList.toggle('hidden');
+}
+
+// Close dropdown when clicking outside
+document.addEventListener('click', e => {
+  const btn = $('btn-acct');
+  const dd  = $('acct-dropdown');
+  if (btn && dd && !btn.contains(e.target) && !dd.contains(e.target)) {
+    dd.classList.add('hidden');
+  }
+  // Close cloud save popover when clicking outside
+  const popover = $('cloud-save-popover');
+  const saveBtn = $('btn-cloud-save');
+  if (popover && saveBtn && !popover.contains(e.target) && !saveBtn.contains(e.target)) {
+    popover.classList.add('hidden');
+  }
+});
+
+// ── Cloud save popover ─────────────────────────────────────────────────────────
+
+let _currentWorkflowId = null;   // set when a saved workflow is loaded
+let _currentWorkflowName = '';
+
+function openCloudSavePopover() {
+  if (!auth.token) { openAuthModal('login'); return; }
+  if (state.steps.length === 0) { showError('Add some steps first.'); return; }
+
+  const btn    = $('btn-cloud-save');
+  const popover = $('cloud-save-popover');
+
+  // Position popover near the button
+  const rect = btn.getBoundingClientRect();
+  popover.style.top  = (rect.bottom + 6) + 'px';
+  popover.style.left = rect.left + 'px';
+
+  $('wf-name-input').value = _currentWorkflowName || '';
+  $('wf-save-submit-btn').textContent = _currentWorkflowId ? 'Update' : 'Save';
+  popover.classList.remove('hidden');
+  setTimeout(() => $('wf-name-input').focus(), 60);
+}
+
+function closeCloudSavePopover() {
+  $('cloud-save-popover').classList.add('hidden');
+}
+
+async function cloudSaveSubmit() {
+  const name = $('wf-name-input').value.trim();
+  if (!name) { $('wf-name-input').focus(); return; }
+
+  const steps = state.steps.map(s => ({ tool: s.toolId, params: s.params }));
+  const btn   = $('wf-save-submit-btn');
+  btn.disabled = true;
+  btn.textContent = 'Saving…';
+
+  try {
+    let r, data;
+    if (_currentWorkflowId) {
+      r    = await authFetch(`/api/workflows/${_currentWorkflowId}`, {
+        method:  'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ name, steps }),
+      });
+    } else {
+      r    = await authFetch('/api/workflows', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ name, steps }),
+      });
+    }
+    data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'Save failed');
+
+    _currentWorkflowId   = data.id;
+    _currentWorkflowName = data.name;
+    closeCloudSavePopover();
+    // Brief visual feedback
+    const saveBtn = $('btn-cloud-save');
+    const orig = saveBtn.innerHTML;
+    saveBtn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="width:13px;height:13px"><polyline points="20 6 9 17 4 12"/></svg> Saved!`;
+    setTimeout(() => { saveBtn.innerHTML = orig; }, 1800);
+  } catch (e) {
+    showError(e.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = _currentWorkflowId ? 'Update' : 'Save';
+  }
+}
+
+// ── My Workflows modal ─────────────────────────────────────────────────────────
+
+async function openWorkflowsModal() {
+  $('acct-dropdown').classList.add('hidden');
+  $('workflows-modal').classList.remove('hidden');
+  await refreshWorkflowsList();
+}
+
+function closeWorkflowsModal() {
+  $('workflows-modal').classList.add('hidden');
+}
+
+async function refreshWorkflowsList() {
+  const listEl = $('workflows-list');
+  listEl.innerHTML = '<div style="color:var(--text-2);font-family:var(--mono);font-size:12px;padding:20px 0">Loading…</div>';
+
+  try {
+    const r    = await authFetch('/api/workflows');
+    const data = await r.json();
+    if (!r.ok) throw new Error(data.error || 'Failed to load');
+
+    listEl.innerHTML = '';
+
+    if (data.length === 0) {
+      listEl.innerHTML = `
+        <div class="workflows-empty">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/>
+            <polyline points="14 2 14 8 20 8"/>
+          </svg>
+          <div>No saved workflows yet.</div>
+          <div style="color:var(--text-3);font-size:12px">Build a pipeline and click "Save Workflow".</div>
+        </div>`;
+      return;
+    }
+
+    for (const wf of data) {
+      const item = document.createElement('div');
+      item.className = 'workflow-item';
+      item.innerHTML = `
+        <div class="workflow-item-info">
+          <div class="workflow-item-name">${escHtml(wf.name)}</div>
+          <div class="workflow-item-meta">${wf.step_count} step${wf.step_count === 1 ? '' : 's'} · ${formatRelativeDate(wf.updated_at)}</div>
+        </div>
+        <button class="workflow-item-run" title="Load &amp; run this workflow">
+          <svg viewBox="0 0 24 24" fill="currentColor">
+            <polygon points="5 3 19 12 5 21 5 3"/>
+          </svg>
+        </button>
+        <button class="workflow-item-del" title="Delete workflow" onclick="deleteWorkflow(event,'${wf.id}')">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="3 6 5 6 21 6"/>
+            <path d="M19 6l-1 14H6L5 6"/>
+            <path d="M10 11v6M14 11v6"/>
+            <path d="M9 6V4h6v2"/>
+          </svg>
+        </button>`;
+      item.querySelector('.workflow-item-run').addEventListener('click', e => { e.stopPropagation(); runCloudWorkflow(wf); });
+      item.addEventListener('click', () => loadCloudWorkflow(wf));
+      listEl.appendChild(item);
+    }
+  } catch (e) {
+    listEl.innerHTML = `<div style="color:var(--danger);font-family:var(--mono);font-size:12px;padding:20px 0">${escHtml(e.message)}</div>`;
+  }
+}
+
+function formatRelativeDate(iso) {
+  const d    = new Date(iso + 'Z');
+  const diff = (Date.now() - d.getTime()) / 1000;
+  if (diff < 60)   return 'just now';
+  if (diff < 3600) return Math.floor(diff / 60) + 'm ago';
+  if (diff < 86400) return Math.floor(diff / 3600) + 'h ago';
+  return Math.floor(diff / 86400) + 'd ago';
+}
+
+function loadCloudWorkflow(wf) {
+  closeWorkflowsModal();
+  state.steps = [];
+  for (const s of wf.steps) {
+    const tool = getTool(s.tool);
+    if (!tool) { showError(`Unknown tool: "${s.tool}"`); continue; }
+    const params = {};
+    for (const p of (tool.params || [])) params[p.id] = p.default !== undefined ? p.default : '';
+    Object.assign(params, s.params || {});
+    state.steps.push({ id: `s${++stepCounter}`, toolId: s.tool, params, open: false });
+  }
+  _currentWorkflowId   = wf.id;
+  _currentWorkflowName = wf.name;
+  renderPipelineSteps();
+  updateRunButton();
+  updateCloudSaveButton();
+  updateAutoConvertBanner();
+}
+
+async function runCloudWorkflow(wf) {
+  closeWorkflowsModal();
+
+  if (!state.sessionId || state.files.length === 0) {
+    showError('Upload files first, then run a saved workflow.');
+    return;
+  }
+
+  loadCloudWorkflow(wf);          // load steps into pipeline
+  await runWorkflow();             // immediately execute
+}
+
+async function deleteWorkflow(event, wfId) {
+  event.stopPropagation();
+  const r = await authFetch(`/api/workflows/${wfId}`, { method: 'DELETE' });
+  if (r.ok) {
+    if (_currentWorkflowId === wfId) {
+      _currentWorkflowId   = null;
+      _currentWorkflowName = '';
+    }
+    await refreshWorkflowsList();
+  } else {
+    const data = await r.json().catch(() => ({}));
+    showError(data.error || 'Could not delete workflow');
+  }
+}
+
+// Expose needed globals
+window.authSwitchTab        = authSwitchTab;
+window.authSubmit           = authSubmit;
+window.closeAuthModal       = closeAuthModal;
+window.openCloudSavePopover = openCloudSavePopover;
+window.closeCloudSavePopover = closeCloudSavePopover;
+window.cloudSaveSubmit      = cloudSaveSubmit;
+window.openWorkflowsModal   = openWorkflowsModal;
+window.closeWorkflowsModal  = closeWorkflowsModal;
+window.deleteWorkflow       = deleteWorkflow;
+
+// ── Boot ───────────────────────────────────────────────────────────────────────
+init();
+</script>
+</body>
+</html>

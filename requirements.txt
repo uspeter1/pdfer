@@ -1,0 +1,7 @@
+flask>=3.0.0
+pymupdf>=1.23.0
+pillow>=10.0.0
+python-pptx>=0.6.21
+werkzeug>=3.0.0
+playwright>=1.49.0
+# After pip install, run: playwright install chromium
