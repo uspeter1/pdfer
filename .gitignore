@@ -8,11 +8,11 @@ __pycache__/
 uploads/
 .playwright-mcp/
 *.pdf
-*.png
 *.jpg
 *.docx
 *.pptx
 *.zip
+!screenshots/*.png
 .claude/
 .venv/
 venv/

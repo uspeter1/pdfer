@@ -2,6 +2,14 @@
 
 A locally-hosted PDF toolkit with 26 tools. Everything runs on your machine — no files are uploaded to any server.
 
+![pdfer home screen](screenshots/01_home.png)
+
+![Workflow builder](screenshots/02_workflow.png)
+
+![Results](screenshots/03_results.png)
+
+![Webpage to PDF](screenshots/04_webpage.png)
+
 ## Features
 
 ### Edit & Transform
